@@ -3,10 +3,17 @@
 #include "libs/base/types.hpp"
 
 #include <asio.hpp>
+#include <bit>
+#include <condition_variable>
 #include <functional>
 #include <map>
+#include <mutex>
+#include <queue>
+#include <string>
+#include <thread>
+#include <variant>
 
-#pragma push(1)
+#pragma pack(push, 1)
 struct Record {
 		char username[24];
 		char password[24];
@@ -14,7 +21,7 @@ struct Record {
 		char logFile[32];
 		b8 isLocked;
 };
-#pragma pop()
+#pragma pack(pop)
 
 struct DependElementRecord {
 		char password[24];
@@ -22,6 +29,23 @@ struct DependElementRecord {
 		char logFile[32];
 		b8 isLocked;
 };
+
+namespace {
+
+	auto toNetwork(u32 val) -> u32 {
+		if constexpr (std::endian::native == std::endian::little) {
+			return std::byteswap(val);
+		}
+		return val;
+	}
+
+	auto toNetwork(u64 val) -> u64 {
+		if constexpr (std::endian::native == std::endian::little) {
+			return std::byteswap(val);
+		}
+		return val;
+	}
+} // namespace
 
 struct DataBase {
 		explicit DataBase(asio::io_context &io);
@@ -34,6 +58,7 @@ struct DataBase {
 
 		using Callback = std::function<void()>;
 		using BoolCallback = std::function<void(b1)>;
+		using U64Callback = std::function<void(u64)>;
 
 		auto load() -> void;
 		auto save() -> void;
@@ -48,7 +73,7 @@ struct DataBase {
 						   const std::string &password,
 						   Callback callback) -> void;
 		auto toggleAccount(const std::string &username, Callback callback) -> void;
-		auto getBalance(const std::string &username, Callback callback) -> void;
+		auto getBalance(const std::string &username, U64Callback callback) -> void;
 		auto changeBalance(const std::string &username, i64 change, Callback callback) -> void;
 		auto transferBalance(const std::string &sender,
 							 const std::string &recipient,
@@ -81,7 +106,7 @@ struct DataBase {
 
 		struct GetBalanceOp {
 				std::string username;
-				Callback callback;
+				U64Callback callback;
 		};
 
 		struct ChangeBalanceOp {
@@ -105,9 +130,19 @@ struct DataBase {
 									  ChangeBalanceOp,
 									  TransferBalanceOp>;
 
-		static constexpr std::string DATABASE_PATH = "data.db";
+		static constexpr const char *DATABASE_PATH = "data.db";
 		static constexpr u64 DEFAULT_BALANCE = 100'000;
 
-		asio::io_context &_io;
+		[[maybe_unused]] asio::io_context &_io;
 		std::map<std::string, DependElementRecord> _data;
+
+		std::mutex _mutex;
+
+		std::queue<WorkItem> _queue;
+		std::condition_variable _cv;
+		std::thread _worker;
+		bool _running = false;
+
+		void processItem(WorkItem &&item);
+		void dbLoop();
 };
