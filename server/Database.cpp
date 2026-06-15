@@ -24,13 +24,13 @@ auto copyFrom(std::string_view src, char (&dest)[N]) -> void {
 
 } // namespace
 
-DataBase::DataBase(asio::io_context &io) : _io(io) {
+DbManager::DbManager(asio::io_context &io) : _io(io) {
 	load();
 	_running = true;
-	_worker = std::thread(&DataBase::dbLoop, this);
+	_worker = std::thread(&DbManager::dbLoop, this);
 }
 
-DataBase::~DataBase() {
+DbManager::~DbManager() {
 	{
 		std::lock_guard<std::mutex> lock(_mutex);
 		_running = false;
@@ -42,7 +42,7 @@ DataBase::~DataBase() {
 	save();
 }
 
-auto DataBase::load() -> void {
+auto DbManager::load() -> void {
 	std::ifstream file(DATABASE_PATH, std::ios::binary);
 	if (!file) {
 		return;
@@ -60,7 +60,7 @@ auto DataBase::load() -> void {
 	}
 }
 
-auto DataBase::save() -> void {
+auto DbManager::save() -> void {
 	std::ofstream file(DATABASE_PATH, std::ios::binary | std::ios::trunc);
 	if (!file) {
 		return;
@@ -78,49 +78,49 @@ auto DataBase::save() -> void {
 	}
 }
 
-auto DataBase::authenticate(const std::string& username, const std::string& password, BoolCallback callback) -> void {
+auto DbManager::authenticate(const std::string& username, const std::string& password, BoolCallback callback) -> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(AuthOp{username, password, std::move(callback)});
 	_cv.notify_one();
 }
 
-auto DataBase::changePassword(const std::string& username, const std::string& newPassword, Callback callback) -> void {
+auto DbManager::changePassword(const std::string& username, const std::string& newPassword, Callback callback) -> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(ChangePasswordOp{username, newPassword, std::move(callback)});
 	_cv.notify_one();
 }
 
-auto DataBase::createAccount(const std::string& username, const std::string& password, Callback callback) -> void {
+auto DbManager::createAccount(const std::string& username, const std::string& password, Callback callback) -> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(CreateAccountOp{username, password, std::move(callback)});
 	_cv.notify_one();
 }
 
-auto DataBase::toggleAccount(const std::string& username, Callback callback) -> void {
+auto DbManager::toggleAccount(const std::string& username, Callback callback) -> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(ToggleAccountOp{username, std::move(callback)});
 	_cv.notify_one();
 }
 
-auto DataBase::getBalance(const std::string& username, U64Callback callback) -> void {
+auto DbManager::getBalance(const std::string& username, U64Callback callback) -> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(GetBalanceOp{username, std::move(callback)});
 	_cv.notify_one();
 }
 
-auto DataBase::changeBalance(const std::string& username, i64 change, Callback callback) -> void {
+auto DbManager::changeBalance(const std::string& username, i64 change, Callback callback) -> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(ChangeBalanceOp{username, change, std::move(callback)});
 	_cv.notify_one();
 }
 
-auto DataBase::transferBalance(const std::string& sender, const std::string& recipient, u64 amount, Callback callback) -> void {
+auto DbManager::transferBalance(const std::string& sender, const std::string& recipient, u64 amount, Callback callback) -> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(TransferBalanceOp{sender, recipient, amount, std::move(callback)});
 	_cv.notify_one();
 }
 
-auto DataBase::processItem(WorkItem&& item) -> void {
+auto DbManager::processItem(WorkItem&& item) -> void {
 	std::visit([this](auto&& op) {
 		using T = std::decay_t<decltype(op)>;
 
@@ -180,7 +180,7 @@ auto DataBase::processItem(WorkItem&& item) -> void {
 	}, std::move(item));
 }
 
-auto DataBase::dbLoop() -> void {
+auto DbManager::dbLoop() -> void {
 	while (true) {
 		WorkItem item;
 		{

@@ -1,6 +1,6 @@
-#include <print>
+#include "server/Server.hpp"
 
 auto main() -> int {
-	std::print("Hello World!\n");
-	return 0;
+	Server server(8080);
+	server.run();
 }

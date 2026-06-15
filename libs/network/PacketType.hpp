@@ -3,18 +3,13 @@
 #include <libs/base/types.hpp>
 
 enum class PacketType : u8 {
-<<<<<<< HEAD
-	AccountAuth = 0,
-	AccountChangePassword = 1,
-	AccountCreate = 2,
-	AccountToggle = 3,
-	BalanceGet = 4,
-	BalanceChange = 5,
-	BalanceTransfer = 6,
-=======
-    account_auth  = 0,
-    ping          = 1,
-    balance_req   = 2,
-    balance_resp  = 3,
->>>>>>> origin/main
+	account_auth   = 0,
+	account_create = 1,
+	balance_req    = 2,
+	balance_resp   = 3,
+	balance_change = 4,
+	balance_transfer = 5,
+	ping           = 6,
+	account_change_password = 7,
+	account_toggle = 8,
 };
