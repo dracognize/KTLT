@@ -1,0 +1,20 @@
+BasedOnStyle: LLVM
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+
+ColumnLimit: 100
+
+AllowShortFunctionsOnASingleLine: None
+
+BreakBeforeBinaryOperators: All
+
+IndentAccessModifiers: true
+NamespaceIndentation: All
+
+BinPackArguments: false
+BinPackParameters: false
+
+AlignAfterOpenBracket: Align
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
