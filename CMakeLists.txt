@@ -44,7 +44,11 @@ target_link_libraries(app PUBLIC
 
 add_executable(server
 				server/main.cpp
+<<<<<<< HEAD
 				server/Database.cpp
+=======
+				server/Database.hpp
+>>>>>>> origin/main
 )
 
 target_include_directories(server PUBLIC

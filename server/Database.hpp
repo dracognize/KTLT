@@ -3,6 +3,7 @@
 #include "libs/base/types.hpp"
 
 #include <asio.hpp>
+<<<<<<< HEAD
 #include <bit>
 #include <condition_variable>
 #include <functional>
@@ -14,6 +15,12 @@
 #include <variant>
 
 #pragma pack(push, 1)
+=======
+#include <functional>
+#include <map>
+
+#pragma push(1)
+>>>>>>> origin/main
 struct Record {
 		char username[24];
 		char password[24];
@@ -21,7 +28,11 @@ struct Record {
 		char logFile[32];
 		b8 isLocked;
 };
+<<<<<<< HEAD
 #pragma pack(pop)
+=======
+#pragma pop()
+>>>>>>> origin/main
 
 struct DependElementRecord {
 		char password[24];
@@ -30,6 +41,7 @@ struct DependElementRecord {
 		b8 isLocked;
 };
 
+<<<<<<< HEAD
 namespace {
 
 	auto toNetwork(u32 val) -> u32 {
@@ -47,6 +59,8 @@ namespace {
 	}
 } // namespace
 
+=======
+>>>>>>> origin/main
 struct DataBase {
 		explicit DataBase(asio::io_context &io);
 		~DataBase();
@@ -58,7 +72,10 @@ struct DataBase {
 
 		using Callback = std::function<void()>;
 		using BoolCallback = std::function<void(b1)>;
+<<<<<<< HEAD
 		using U64Callback = std::function<void(u64)>;
+=======
+>>>>>>> origin/main
 
 		auto load() -> void;
 		auto save() -> void;
@@ -73,7 +90,11 @@ struct DataBase {
 						   const std::string &password,
 						   Callback callback) -> void;
 		auto toggleAccount(const std::string &username, Callback callback) -> void;
+<<<<<<< HEAD
 		auto getBalance(const std::string &username, U64Callback callback) -> void;
+=======
+		auto getBalance(const std::string &username, Callback callback) -> void;
+>>>>>>> origin/main
 		auto changeBalance(const std::string &username, i64 change, Callback callback) -> void;
 		auto transferBalance(const std::string &sender,
 							 const std::string &recipient,
@@ -106,7 +127,11 @@ struct DataBase {
 
 		struct GetBalanceOp {
 				std::string username;
+<<<<<<< HEAD
 				U64Callback callback;
+=======
+				Callback callback;
+>>>>>>> origin/main
 		};
 
 		struct ChangeBalanceOp {
@@ -130,6 +155,7 @@ struct DataBase {
 									  ChangeBalanceOp,
 									  TransferBalanceOp>;
 
+<<<<<<< HEAD
 		static constexpr const char *DATABASE_PATH = "data.db";
 		static constexpr u64 DEFAULT_BALANCE = 100'000;
 
@@ -145,4 +171,11 @@ struct DataBase {
 
 		void processItem(WorkItem &&item);
 		void dbLoop();
+=======
+		static constexpr std::string DATABASE_PATH = "data.db";
+		static constexpr u64 DEFAULT_BALANCE = 100'000;
+
+		asio::io_context &_io;
+		std::map<std::string, DependElementRecord> _data;
+>>>>>>> origin/main
 };
