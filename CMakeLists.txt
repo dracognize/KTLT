@@ -56,3 +56,7 @@ target_link_libraries(server PUBLIC
 				network
 				Threads::Threads
 )
+
+if(WIN32)
+    target_link_libraries(server PRIVATE ws2_32 mswsock)
+endif()
