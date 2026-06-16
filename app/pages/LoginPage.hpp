@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ftxui/component/component.hpp>
+#include <functional>
 #include <string>
 
 class Client;
@@ -13,6 +14,8 @@ struct LoginPage {
 				  std::string &appUsername, int &page);
 		ftxui::Component build();
 		void reset();
+
+		std::function<void()> onEnterDashboard;
 
 	private:
 		void doLogin();

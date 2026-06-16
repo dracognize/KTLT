@@ -24,6 +24,8 @@ void App::run() {
 	LoginPage loginPage(client, screen, appUsername, page);
 	DashboardPage dashboard(client, screen, appUsername, page, loginPage);
 
+	loginPage.onEnterDashboard = [&] { dashboard.doRefresh(); };
+
 	auto loginComp = loginPage.build();
 	auto dashComp = dashboard.build();
 

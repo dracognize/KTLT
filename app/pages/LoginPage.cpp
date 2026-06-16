@@ -32,6 +32,8 @@ void LoginPage::doLogin() {
 }
 
 void LoginPage::onLogin() {
+	if (onEnterDashboard)
+		onEnterDashboard();
 	_page = 1;
 }
 

@@ -6,16 +6,19 @@
 class Client;
 struct LoginPage;
 namespace ftxui {
-class ScreenInteractive;
+	class ScreenInteractive;
 }
 
 struct DashboardPage {
-		DashboardPage(Client &client, ftxui::ScreenInteractive &screen,
-					  const std::string &username, int &page, LoginPage &loginPage);
+		DashboardPage(Client &client,
+					  ftxui::ScreenInteractive &screen,
+					  const std::string &username,
+					  int &page,
+					  LoginPage &loginPage);
 		ftxui::Component build();
+		void doRefresh();
 
 	private:
-		void doRefresh();
 		void onLogout();
 		void onExit();
 

@@ -1,16 +1,18 @@
 #include "app/pages/DashboardPage.hpp"
-#include "app/pages/LoginPage.hpp"
 #include "app/client/Client.hpp"
+#include "app/pages/LoginPage.hpp"
 
 #include <ftxui/component/component_options.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <string>
 
-DashboardPage::DashboardPage(Client &client, ftxui::ScreenInteractive &screen,
-							 const std::string &username, int &page, LoginPage &loginPage)
-	: _client(client), _screen(screen), _username(username), _page(page),
-	  _loginPage(loginPage) {
+DashboardPage::DashboardPage(Client &client,
+							 ftxui::ScreenInteractive &screen,
+							 const std::string &username,
+							 int &page,
+							 LoginPage &loginPage)
+	: _client(client), _screen(screen), _username(username), _page(page), _loginPage(loginPage) {
 }
 
 void DashboardPage::doRefresh() {
