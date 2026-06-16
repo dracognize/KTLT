@@ -27,6 +27,10 @@ target_link_libraries(network PUBLIC
 
 add_executable(app
 				app/main.cpp
+				app/App.cpp
+				app/client/Client.cpp
+				app/pages/LoginPage.cpp
+				app/pages/DashboardPage.cpp
 )
 
 target_include_directories(app PUBLIC
@@ -46,6 +50,7 @@ add_executable(server
 				server/main.cpp
 				server/Database.cpp
 				server/Server.cpp
+				server/ServerLog.cpp
 )
 
 target_include_directories(server PUBLIC
@@ -60,3 +65,12 @@ target_link_libraries(server PUBLIC
 if(WIN32)
     target_link_libraries(server PRIVATE ws2_32 mswsock)
 endif()
+
+
+add_executable(generate_test_data
+				tests/generate_test_data.cpp
+)
+
+target_include_directories(generate_test_data PUBLIC
+				${CMAKE_SOURCE_DIR}
+)

@@ -2,12 +2,8 @@
 
 #include "libs/base/types.hpp"
 
-#include <algorithm>
 #include <asio.hpp>
-#include <bit>
 #include <condition_variable>
-#include <cstring>
-#include <fstream>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -32,23 +28,6 @@ struct DependElementRecord {
 		char logFile[32];
 		b8 isLocked;
 };
-
-namespace {
-
-	auto toNetwork(u32 val) -> u32 {
-		if constexpr (std::endian::native == std::endian::little) {
-			return std::byteswap(val);
-		}
-		return val;
-	}
-
-	auto toNetwork(u64 val) -> u64 {
-		if constexpr (std::endian::native == std::endian::little) {
-			return std::byteswap(val);
-		}
-		return val;
-	}
-} // namespace
 
 struct DbManager {
 		explicit DbManager(asio::io_context &io);
@@ -136,7 +115,7 @@ struct DbManager {
 		static constexpr const char *DATABASE_PATH = "data.db";
 		static constexpr u64 DEFAULT_BALANCE = 100'000;
 
-		[[maybe_unused]] asio::io_context &_io;
+		asio::io_context &_io;
 		std::map<std::string, DependElementRecord> _data;
 
 		std::mutex _mutex;

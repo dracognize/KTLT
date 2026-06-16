@@ -1,6 +1,6 @@
-#include <iostream>
+#include "app/App.hpp"
 
 auto main() -> int {
-	std::cout << "Hello World!\n";
-	return 0;
+	App app;
+	app.run();
 }

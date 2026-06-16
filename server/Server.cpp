@@ -1,16 +1,11 @@
-#include "server/Server.hpp"
+#include "server/Database.hpp"
+#include "server/ServerLog.hpp"
+
 #include "libs/network/Packet.hpp"
 #include "libs/network/PacketType.hpp"
+#include "server/Server.hpp"
 
-#include <chrono>
-#include <format>
-#include <iostream>
 #include <utility>
-
-void serverLog(const std::string &level, const std::string &message) {
-	auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
-	std::cout << std::format("[{:%T}] [{}] {}\n", now, level, message);
-}
 
 Session::Session(asio::ip::tcp::socket socket, DbManager &db)
 	: _socket(std::move(socket)), _db(db) {
@@ -19,7 +14,7 @@ Session::Session(asio::ip::tcp::socket socket, DbManager &db)
 }
 
 void Session::start() {
-	serverLog("INFO", _peer + " connected");
+	ServerLog::info(_peer + " connected");
 	doRead();
 }
 
@@ -27,23 +22,23 @@ void Session::doRead() {
 	auto self = shared_from_this();
 	packet::asyncRecv(_socket, [this, self](std::error_code ec, PacketType type, std::string data) {
 		if (ec) {
-			serverLog("INFO", _peer + " disconnected");
+			ServerLog::info(_peer + " disconnected");
 			return;
 		}
 
 		switch (type) {
-		using enum PacketType;
+			using enum PacketType;
 		case account_auth: {
 			auto delim = data.find(':');
 			if (delim == std::string::npos) {
-				serverLog("WARN", _peer + " malformed auth packet");
+				ServerLog::warn( _peer + " malformed auth packet");
 				doWrite(std::to_underlying(account_auth), "FAIL");
 				return;
 			}
 			auto user = data.substr(0, delim);
 			auto pass = data.substr(delim + 1);
 			_db.authenticate(user, pass, [this, self, user](bool ok) {
-				serverLog("AUTH", _peer + " user '" + user + "' " + (ok ? "OK" : "FAIL"));
+				ServerLog::auth( _peer + " user '" + user + "' " + (ok ? "OK" : "FAIL"));
 				doWrite(std::to_underlying(PacketType::account_auth), ok ? "OK" : "FAIL");
 			});
 			break;
@@ -57,7 +52,7 @@ void Session::doRead() {
 			auto user = data.substr(0, delim);
 			auto pass = data.substr(delim + 1);
 			_db.createAccount(user, pass, [this, self, user] {
-				serverLog("CREATE", _peer + " user '" + user + "' created");
+				ServerLog::create( _peer + " user '" + user + "' created");
 				doWrite(std::to_underlying(PacketType::account_create), "OK");
 			});
 			break;
@@ -77,7 +72,7 @@ void Session::doRead() {
 			auto user = data.substr(0, delim);
 			auto change = std::stoll(data.substr(delim + 1));
 			_db.changeBalance(user, change, [this, self, user] {
-				serverLog("BALANCE", _peer + " user '" + user + "' balance changed");
+				ServerLog::balance( _peer + " user '" + user + "' balance changed");
 				doWrite(std::to_underlying(PacketType::balance_change), "OK");
 			});
 			break;
@@ -97,34 +92,14 @@ void Session::doRead() {
 			auto recipient = data.substr(delim1 + 1, delim2 - delim1 - 1);
 			auto amount = std::stoull(data.substr(delim2 + 1));
 			_db.transferBalance(sender, recipient, amount, [this, self, sender] {
-				serverLog("TRANSFER", _peer + " transfer from '" + sender + "' OK");
+				ServerLog::transfer( _peer + " transfer from '" + sender + "' OK");
 				doWrite(std::to_underlying(PacketType::balance_transfer), "OK");
 			});
 			break;
 		}
-		case account_change_password: {
-			auto delim = data.find(':');
-			if (delim == std::string::npos) {
-				doWrite(std::to_underlying(account_change_password), "FAIL");
-				return;
-			}
-			auto user = data.substr(0, delim);
-			auto newPass = data.substr(delim + 1);
-			_db.changePassword(user, newPass, [this, self, user] {
-				serverLog("PASSWORD", _peer + " user '" + user + "' password changed");
-				doWrite(std::to_underlying(PacketType::account_change_password), "OK");
-			});
-			break;
-		}
-		case account_toggle: {
-			_db.toggleAccount(data, [this, self] {
-				serverLog("TOGGLE", _peer + " account toggled");
-				doWrite(std::to_underlying(PacketType::account_toggle), "OK");
-			});
-			break;
-		}
 		default:
-			serverLog("WARN", _peer + " unknown packet type " + std::to_string(std::to_underlying(type)));
+			ServerLog::warn(
+					  _peer + " unknown packet type " + std::to_string(std::to_underlying(type)));
 			break;
 		}
 	});
@@ -132,24 +107,25 @@ void Session::doRead() {
 
 void Session::doWrite(u8 type, const std::string &response) {
 	auto self = shared_from_this();
-	packet::asyncSend(_socket, static_cast<PacketType>(type), response, [this, self](std::error_code ec) {
-		if (ec) {
-			serverLog("INFO", _peer + " disconnected");
-			return;
-		}
-		doRead();
-	});
+	packet::asyncSend(
+		_socket, static_cast<PacketType>(type), response, [this, self](std::error_code ec) {
+			if (ec) {
+				ServerLog::info(_peer + " disconnected");
+				return;
+			}
+			doRead();
+		});
 }
 
 Server::Server(u16 port)
 	: _acceptor(_io, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), _db(_io) {
-	serverLog("INFO", "listening on port " + std::to_string(port));
+	ServerLog::info("listening on port " + std::to_string(port));
 	doAccept();
 }
 
 void Server::run() {
 	_io.run();
-	serverLog("INFO", "shutting down");
+	ServerLog::info("shutting down");
 }
 
 void Server::doAccept() {
