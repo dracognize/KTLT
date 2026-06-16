@@ -4,7 +4,6 @@
 #include "app/pages/LoginPage.hpp"
 
 #include <ftxui/component/screen_interactive.hpp>
-#include <memory>
 #include <string>
 #include <thread>
 
@@ -19,36 +18,14 @@ void App::run() {
 			screen.Exit();
 	});
 
-	auto post = [&](auto fn) {
-		screen.Post([&, fn = std::move(fn)] {
-			fn();
-			screen.RequestAnimationFrame();
-		});
-	};
-
-	std::string loggedInUser;
+	std::string appUsername;
 	int page = 0;
 
-	auto loginPage = std::make_shared<LoginPage>(client, post, [&](std::string user) {
-		loggedInUser = std::move(user);
-		page = 1;
-		screen.RequestAnimationFrame();
-	});
+	LoginPage loginPage(client, screen, appUsername, page);
+	DashboardPage dashboard(client, screen, appUsername, page, loginPage);
 
-	auto dashboard = std::make_shared<DashboardPage>(
-		client,
-		post,
-		[&] { return loggedInUser; },
-		[&] {
-			loggedInUser.clear();
-			loginPage->reset();
-			page = 0;
-			screen.RequestAnimationFrame();
-		},
-		[&] { screen.Exit(); });
-
-	auto loginComp = loginPage->build();
-	auto dashComp = dashboard->build();
+	auto loginComp = loginPage.build();
+	auto dashComp = dashboard.build();
 
 	auto container = ftxui::Container::Tab({loginComp, dashComp}, &page);
 

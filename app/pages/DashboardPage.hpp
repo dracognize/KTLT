@@ -1,29 +1,29 @@
 #pragma once
 
 #include <ftxui/component/component.hpp>
-#include <functional>
 #include <string>
 
 class Client;
+struct LoginPage;
+namespace ftxui {
+class ScreenInteractive;
+}
 
 struct DashboardPage {
-		using Post = std::function<void(std::function<void()>)>;
-
-		DashboardPage(Client &client,
-					  Post post,
-					  std::function<std::string()> getUsername,
-					  std::function<void()> onLogout,
-					  std::function<void()> onExit);
+		DashboardPage(Client &client, ftxui::ScreenInteractive &screen,
+					  const std::string &username, int &page, LoginPage &loginPage);
 		ftxui::Component build();
 
 	private:
 		void doRefresh();
+		void onLogout();
+		void onExit();
 
 		Client &_client;
-		Post _post;
-		std::function<std::string()> _getUsername;
-		std::function<void()> _onLogout;
-		std::function<void()> _onExit;
+		ftxui::ScreenInteractive &_screen;
+		const std::string &_username;
+		int &_page;
+		LoginPage &_loginPage;
 		std::string _balanceStr;
 		std::string _status;
 };

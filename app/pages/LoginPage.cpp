@@ -2,10 +2,12 @@
 #include "app/client/Client.hpp"
 
 #include <ftxui/component/component_options.hpp>
+#include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 
-LoginPage::LoginPage(Client &client, Post post, Handler onLogin)
-	: _client(client), _post(std::move(post)), _onLogin(std::move(onLogin)) {
+LoginPage::LoginPage(Client &client, ftxui::ScreenInteractive &screen,
+					std::string &appUsername, int &page)
+	: _client(client), _screen(screen), _appUsername(appUsername), _page(page) {
 }
 
 void LoginPage::doLogin() {
@@ -16,15 +18,21 @@ void LoginPage::doLogin() {
 	_loading = true;
 	_status = "";
 	_client.authenticate(_username, _password, [this](bool ok) {
-		_post([this, ok] {
+		_screen.Post([this, ok] {
 			_loading = false;
 			if (ok) {
-				_onLogin(_username);
+				_appUsername = _username;
+				onLogin();
 			} else {
 				_status = "Authentication failed";
 			}
+			_screen.RequestAnimationFrame();
 		});
 	});
+}
+
+void LoginPage::onLogin() {
+	_page = 1;
 }
 
 void LoginPage::reset() {
@@ -37,6 +45,7 @@ void LoginPage::reset() {
 ftxui::Component LoginPage::build() {
 	auto passwordOpt = ftxui::InputOption{};
 	passwordOpt.password = true;
+	passwordOpt.multiline = false;
 	passwordOpt.on_enter = [this] { doLogin(); };
 
 	auto userInput = ftxui::Input(&_username, "username");

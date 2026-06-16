@@ -1,25 +1,27 @@
 #pragma once
 
 #include <ftxui/component/component.hpp>
-#include <functional>
 #include <string>
 
 class Client;
+namespace ftxui {
+class ScreenInteractive;
+}
 
 struct LoginPage {
-		using Post = std::function<void(std::function<void()>)>;
-		using Handler = std::function<void(std::string)>;
-
-		LoginPage(Client &client, Post post, Handler onLogin);
+		LoginPage(Client &client, ftxui::ScreenInteractive &screen,
+				  std::string &appUsername, int &page);
 		ftxui::Component build();
 		void reset();
 
 	private:
 		void doLogin();
+		void onLogin();
 
 		Client &_client;
-		Post _post;
-		Handler _onLogin;
+		ftxui::ScreenInteractive &_screen;
+		std::string &_appUsername;
+		int &_page;
 		std::string _username;
 		std::string _password;
 		std::string _status;
