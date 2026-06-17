@@ -24,6 +24,11 @@ class Session : public std::enable_shared_from_this<Session> {
 struct Server {
 		explicit Server(u16 port);
 		void run();
+<<<<<<< HEAD
+=======
+		void stop();
+		auto ioContext() -> asio::io_context &;
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 
 	private:
 		void doAccept();

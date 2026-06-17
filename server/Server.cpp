@@ -5,6 +5,7 @@
 #include "libs/network/PacketType.hpp"
 #include "server/Server.hpp"
 
+#include <fstream>
 #include <utility>
 
 Session::Session(asio::ip::tcp::socket socket, DbManager &db)
@@ -31,14 +32,14 @@ void Session::doRead() {
 		case account_auth: {
 			auto delim = data.find(':');
 			if (delim == std::string::npos) {
-				ServerLog::warn( _peer + " malformed auth packet");
+				ServerLog::warn(_peer + " malformed auth packet");
 				doWrite(std::to_underlying(account_auth), "FAIL");
 				return;
 			}
 			auto user = data.substr(0, delim);
 			auto pass = data.substr(delim + 1);
 			_db.authenticate(user, pass, [this, self, user](bool ok) {
-				ServerLog::auth( _peer + " user '" + user + "' " + (ok ? "OK" : "FAIL"));
+				ServerLog::auth(_peer + " user '" + user + "' " + (ok ? "OK" : "FAIL"));
 				doWrite(std::to_underlying(PacketType::account_auth), ok ? "OK" : "FAIL");
 			});
 			break;
@@ -51,9 +52,19 @@ void Session::doRead() {
 			}
 			auto user = data.substr(0, delim);
 			auto pass = data.substr(delim + 1);
+<<<<<<< HEAD
 			_db.createAccount(user, pass, [this, self, user] {
 				ServerLog::create( _peer + " user '" + user + "' created");
 				doWrite(std::to_underlying(PacketType::account_create), "OK");
+=======
+			_db.createAccount(user, pass, [this, self, user](bool created) {
+				if (created) {
+					ServerLog::create(_peer + " user '" + user + "' created");
+				} else {
+					ServerLog::warn(_peer + " user '" + user + "' already exists");
+				}
+				doWrite(std::to_underlying(PacketType::account_create), created ? "OK" : "FAIL");
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 			});
 			break;
 		}
@@ -70,10 +81,25 @@ void Session::doRead() {
 				return;
 			}
 			auto user = data.substr(0, delim);
+<<<<<<< HEAD
 			auto change = std::stoll(data.substr(delim + 1));
 			_db.changeBalance(user, change, [this, self, user] {
 				ServerLog::balance( _peer + " user '" + user + "' balance changed");
 				doWrite(std::to_underlying(PacketType::balance_change), "OK");
+=======
+			i64 change = 0;
+			try {
+				change = std::stoll(data.substr(delim + 1));
+			} catch (...) {
+				doWrite(std::to_underlying(balance_change), "FAIL");
+				return;
+			}
+			_db.changeBalance(user, change, [this, self, user](bool ok) {
+				if (ok) {
+					ServerLog::balance(_peer + " user '" + user + "' balance changed");
+				}
+				doWrite(std::to_underlying(PacketType::balance_change), ok ? "OK" : "FAIL");
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 			});
 			break;
 		}
@@ -90,6 +116,7 @@ void Session::doRead() {
 			}
 			auto sender = data.substr(0, delim1);
 			auto recipient = data.substr(delim1 + 1, delim2 - delim1 - 1);
+<<<<<<< HEAD
 			auto amount = std::stoull(data.substr(delim2 + 1));
 			_db.transferBalance(sender, recipient, amount, [this, self, sender] {
 				ServerLog::transfer( _peer + " transfer from '" + sender + "' OK");
@@ -115,12 +142,80 @@ void Session::doRead() {
 			_db.toggleAccount(data, [this, self, user = data] {
 				ServerLog::toggle( _peer + " user '" + user + "' lock toggled");
 				doWrite(std::to_underlying(PacketType::account_toggle), "OK");
+=======
+			u64 amount = 0;
+			try {
+				amount = std::stoull(data.substr(delim2 + 1));
+			} catch (...) {
+				doWrite(std::to_underlying(balance_transfer), "FAIL");
+				return;
+			}
+			_db.transferBalance(sender, recipient, amount, [this, self, sender](bool ok) {
+				if (ok) {
+					ServerLog::transfer(_peer + " transfer from '" + sender + "' OK");
+				}
+				doWrite(std::to_underlying(PacketType::balance_transfer), ok ? "OK" : "FAIL");
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 			});
 			break;
 		}
+		case ping:
+			doWrite(std::to_underlying(ping), "PONG");
+			break;
+		case log_req: {
+			// Validate path component to prevent directory traversal
+			if (data.empty() || data.find('/') != std::string::npos
+				|| data.find("..") != std::string::npos) {
+				doWrite(std::to_underlying(log_req), "");
+				break;
+			}
+			auto path = std::string{DataDir} + "/" + data + ".log";
+			auto file = std::ifstream(path);
+			if (!file) {
+				doWrite(std::to_underlying(log_req), "");
+				break;
+			}
+			std::vector<std::string> lines;
+			std::string line;
+			while (std::getline(file, line)) {
+				lines.push_back(std::move(line));
+			}
+			auto count = lines.size();
+			auto start = count > 20 ? count - 20 : 0;
+			std::string result;
+			for (auto i = start; i < count; ++i) {
+				result += lines[i] + '\n';
+			}
+			doWrite(std::to_underlying(log_req), result);
+			break;
+		}
+		case account_change_password: {
+			auto delim = data.find(':');
+			if (delim == std::string::npos) {
+				doWrite(std::to_underlying(account_change_password), "FAIL");
+				return;
+			}
+			auto user = data.substr(0, delim);
+			auto newPass = data.substr(delim + 1);
+			_db.changePassword(user, newPass, [this, self, user](bool ok) {
+				if (ok) {
+					ServerLog::password(_peer + " user '" + user + "' password changed");
+				} else {
+					ServerLog::warn(_peer + " user '" + user + "' password change failed");
+				}
+				doWrite(std::to_underlying(PacketType::account_change_password),
+						ok ? "OK" : "FAIL");
+			});
+			break;
+		}
+		case account_toggle: {
+			_db.toggleAccount(data,
+							  [this, self](bool) { doWrite(std::to_underlying(account_toggle), "OK"); });
+			break;
+		}
 		default:
-			ServerLog::warn(
-					  _peer + " unknown packet type " + std::to_string(std::to_underlying(type)));
+			ServerLog::warn(_peer + " unknown packet type "
+							+ std::to_string(std::to_underlying(type)));
 			break;
 		}
 	});
@@ -144,6 +239,17 @@ Server::Server(u16 port)
 	doAccept();
 }
 
+<<<<<<< HEAD
+=======
+void Server::stop() {
+	_io.stop();
+}
+
+auto Server::ioContext() -> asio::io_context & {
+	return _io;
+}
+
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 void Server::run() {
 	_io.run();
 	ServerLog::info("shutting down");

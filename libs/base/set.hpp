@@ -8,7 +8,9 @@
 #include "types.hpp"
 
 namespace base {
-	template <class t_Key, class t_Comparator = std::less<t_Key>, class t_Allocator = std::allocator<t_Key>>
+	template <class t_Key,
+			  class t_Comparator = std::less<t_Key>,
+			  class t_Allocator = std::allocator<t_Key>>
 	struct Set {
 		private:
 			using _base = RedBlackTree<t_Key, t_Comparator, t_Allocator>;
@@ -16,48 +18,54 @@ namespace base {
 
 		public:
 			// --- Types ---
-			using key_type				 = t_Key;
-			using value_type			 = t_Key;
-			using key_compare			 = t_Comparator;
-			using value_compare			 = t_Comparator;
-			using allocator_type		 = t_Allocator;
-			using size_type				 = usize;
-			using difference_type		 = isize;
-			using reference				 = value_type&;
-			using const_reference		 = const value_type&;
-			using pointer				 = value_type*;
-			using const_pointer			 = const value_type*;
-			using iterator				 = typename _base::const_iterator;
-			using const_iterator		 = typename _base::const_iterator;
-			using reverse_iterator		 = typename _base::const_reverse_iterator;
+			using key_type = t_Key;
+			using value_type = t_Key;
+			using key_compare = t_Comparator;
+			using value_compare = t_Comparator;
+			using allocator_type = t_Allocator;
+			using size_type = usize;
+			using difference_type = isize;
+			using reference = value_type &;
+			using const_reference = const value_type &;
+			using pointer = value_type *;
+			using const_pointer = const value_type *;
+			using iterator = typename _base::const_iterator;
+			using const_iterator = typename _base::const_iterator;
+			using reverse_iterator = typename _base::const_reverse_iterator;
 			using const_reverse_iterator = typename _base::const_reverse_iterator;
 
 			// --- Construction ---
 			Set() = default;
 
-			explicit Set(const key_compare& comp, const allocator_type& alloc = allocator_type{}) : _tree(comp, alloc) {
+			explicit Set(const key_compare &comp, const allocator_type &alloc = allocator_type{})
+				: _tree(comp, alloc) {
 			}
 
-			explicit Set(const allocator_type& alloc) : _tree(alloc) {
+			explicit Set(const allocator_type &alloc) : _tree(alloc) {
 			}
 
 			template <std::input_iterator T_InputIt>
-			Set(T_InputIt first, T_InputIt last, const key_compare& comp = key_compare{},
-				const allocator_type& alloc = allocator_type{}) : _tree(first, last, comp, alloc) {
+			Set(T_InputIt first,
+				T_InputIt last,
+				const key_compare &comp = key_compare{},
+				const allocator_type &alloc = allocator_type{})
+				: _tree(first, last, comp, alloc) {
 			}
 
-			Set(std::initializer_list<value_type> init, const key_compare& comp = key_compare{},
-				const allocator_type& alloc = allocator_type{}) : _tree(init, comp, alloc) {
+			Set(std::initializer_list<value_type> init,
+				const key_compare &comp = key_compare{},
+				const allocator_type &alloc = allocator_type{})
+				: _tree(init, comp, alloc) {
 			}
 
-			Set(const Set&) = default;
-			Set(Set&&)		= default;
+			Set(const Set &) = default;
+			Set(Set &&) = default;
 
 			// --- Assignment ---
-			auto operator=(const Set&) -> Set& = default;
-			auto operator=(Set&&) -> Set&	   = default;
+			auto operator=(const Set &) -> Set & = default;
+			auto operator=(Set &&) -> Set & = default;
 
-			auto operator=(std::initializer_list<value_type> ilist) -> Set& {
+			auto operator=(std::initializer_list<value_type> ilist) -> Set & {
 				_tree.clear();
 				_tree.insert(ilist);
 				return *this;
@@ -105,12 +113,12 @@ namespace base {
 				_tree.clear();
 			}
 
-			auto insert(const value_type& val) -> std::pair<iterator, bool> {
+			auto insert(const value_type &val) -> std::pair<iterator, bool> {
 				auto r = _tree.insert(val);
 				return {iterator(r.first), r.second};
 			}
 
-			auto insert(const_iterator hint, const value_type& val) -> iterator {
+			auto insert(const_iterator hint, const value_type &val) -> iterator {
 				return _tree.insert(hint, val);
 			}
 
@@ -131,11 +139,11 @@ namespace base {
 				return _tree.erase(first, last);
 			}
 
-			auto erase(const key_type& val) -> size_type {
+			auto erase(const key_type &val) -> size_type {
 				return _tree.erase(val);
 			}
 
-			auto swap(Set& other) noexcept(noexcept(_tree.swap(other._tree))) -> void {
+			auto swap(Set &other) noexcept(noexcept(_tree.swap(other._tree))) -> void {
 				_tree.swap(other._tree);
 			}
 
@@ -146,23 +154,24 @@ namespace base {
 			}
 
 			// --- Lookup ---
-			auto find(const key_type& val) const -> const_iterator {
+			auto find(const key_type &val) const -> const_iterator {
 				return _tree.find(val);
 			}
-			auto contains(const key_type& val) const -> bool {
+			auto contains(const key_type &val) const -> bool {
 				return _tree.contains(val);
 			}
-			auto count(const key_type& val) const -> size_type {
+			auto count(const key_type &val) const -> size_type {
 				return _tree.contains(val) ? 1 : 0;
 			}
-			auto lower_bound(const key_type& val) const -> const_iterator {
+			auto lower_bound(const key_type &val) const -> const_iterator {
 				return _tree.lower_bound(val);
 			}
-			auto upper_bound(const key_type& val) const -> const_iterator {
+			auto upper_bound(const key_type &val) const -> const_iterator {
 				return _tree.upper_bound(val);
 			}
 
-			auto equal_range(const key_type& val) const -> std::pair<const_iterator, const_iterator> {
+			auto equal_range(const key_type &val) const
+				-> std::pair<const_iterator, const_iterator> {
 				return {lower_bound(val), upper_bound(val)};
 			}
 
@@ -179,8 +188,8 @@ namespace base {
 	};
 
 	template <class t_Key, class t_Comparator, class t_Allocator>
-	auto swap(Set<t_Key, t_Comparator, t_Allocator>& a,
-			  Set<t_Key, t_Comparator, t_Allocator>& b) noexcept(noexcept(a.swap(b))) -> void {
+	auto swap(Set<t_Key, t_Comparator, t_Allocator> &a,
+			  Set<t_Key, t_Comparator, t_Allocator> &b) noexcept(noexcept(a.swap(b))) -> void {
 		a.swap(b);
 	}
 } // namespace base

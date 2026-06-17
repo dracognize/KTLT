@@ -13,6 +13,7 @@
 #include <thread>
 #include <variant>
 
+<<<<<<< HEAD
 namespace base {
 	// base::hash<T> mac dinh yeu cau T trivially_copyable (xem hash.hpp).
 	// std::string khong thoa man dieu do, nen can specialization rieng
@@ -29,17 +30,40 @@ namespace base {
 struct Record {
 		char username[24];
 		char password[24];
+=======
+// Password security: store salt (16 bytes) + SHA-256 binary hash (32 bytes) = 48 bytes
+inline constexpr usize UsernameMaxLen = 23;
+inline constexpr usize PasswordSaltLen = 16;
+inline constexpr usize PasswordHashLen = 32;
+inline constexpr usize PasswordStoreLen = PasswordSaltLen + PasswordHashLen; // 48
+inline constexpr usize LogFileMaxLen = 31;
+inline constexpr usize DefaultBalance = 100'000;
+inline constexpr const char *DataDir = "data";
+inline constexpr const char *DatabasePath = "data.db";
+
+#pragma pack(push, 1)
+struct Record {
+		char username[UsernameMaxLen + 1]; // 24
+		char password[PasswordStoreLen];   // 48 (16 salt + 32 hash)
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 		u64 balance;
-		char logFile[32];
+		char logFile[LogFileMaxLen + 1]; // 32
 		b8 isLocked;
 };
 
 #pragma pack(pop)
 
+<<<<<<< HEAD
 struct DependElementRecord {
 		char password[24];
+=======
+static_assert(sizeof(Record) == 24 + 48 + 8 + 32 + 1, "Record size mismatch");
+
+struct UserRecord {
+		char password[PasswordStoreLen]; // 48 (16 salt + 32 hash)
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 		u64 balance;
-		char logFile[32];
+		char logFile[LogFileMaxLen + 1]; // 32
 		b8 isLocked;
 };
 
@@ -84,11 +108,16 @@ struct DbManager {
 						  BoolCallback callback) -> void;
 		auto changePassword(const std::string &username,
 							const std::string &newPassword,
-							Callback callback) -> void;
+							BoolCallback callback) -> void;
 		auto createAccount(const std::string &username,
 						   const std::string &password,
+<<<<<<< HEAD
 						   Callback callback) -> void;
 		auto toggleAccount(const std::string &username, Callback callback) -> void;
+=======
+						   BoolCallback callback) -> void;
+		auto toggleAccount(const std::string &username, BoolCallback callback) -> void;
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 		auto getBalance(const std::string &username, U64Callback callback) -> void;
 		auto changeBalance(const std::string &username, i64 change, Callback callback) -> void;
 		auto transferBalance(const std::string &sender,
@@ -106,7 +135,7 @@ struct DbManager {
 		struct ChangePasswordOp {
 				std::string username;
 				std::string newPassword;
-				Callback callback;
+				BoolCallback callback;
 		};
 
 		struct CreateAccountOp {
@@ -117,7 +146,7 @@ struct DbManager {
 
 		struct ToggleAccountOp {
 				std::string username;
-				Callback callback;
+				BoolCallback callback;
 		};
 
 		struct GetBalanceOp {
@@ -138,27 +167,37 @@ struct DbManager {
 				Callback callback;
 		};
 
+		struct SaveOp {};
+
 		using WorkItem = std::variant<AuthOp,
 									  ChangePasswordOp,
 									  CreateAccountOp,
 									  ToggleAccountOp,
 									  GetBalanceOp,
 									  ChangeBalanceOp,
-									  TransferBalanceOp>;
+									  TransferBalanceOp,
+									  SaveOp>;
 
-		static constexpr const char *DATABASE_PATH = "data.db";
-		static constexpr u64 DEFAULT_BALANCE = 100'000;
+		static constexpr auto SaveInterval = std::chrono::seconds(30);
 
 		asio::io_context &_io;
+<<<<<<< HEAD
 		base::HashMap<std::string, DependElementRecord> _data;
+=======
+		std::map<std::string, UserRecord> _data;
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 
 		std::mutex _mutex;
+		bool _dirty = false;
 
 		std::queue<WorkItem> _queue;
 		std::condition_variable _cv;
 		std::thread _worker;
 		bool _running = false;
 
+		asio::steady_timer _saveTimer;
+
 		void processItem(WorkItem &&item);
 		void dbLoop();
+		void onSaveTimer(std::error_code ec);
 };

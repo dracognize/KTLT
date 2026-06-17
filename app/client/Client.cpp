@@ -1,6 +1,8 @@
 #include "app/client/Client.hpp"
 #include "libs/network/Packet.hpp"
 
+#include <charconv>
+
 Client::Client(const std::string &host, u16 port)
 	: _work(asio::make_work_guard(_io)), _socket(_io), _host(host), _port(port) {
 }
@@ -15,6 +17,10 @@ Client::~Client() {
 
 void Client::stop() {
 	_io.stop();
+}
+
+void Client::onDisconnect(Client::VoidHandler handler) {
+	_disconnectHandler = std::move(handler);
 }
 
 void Client::connect(BoolHandler handler) {
@@ -43,6 +49,54 @@ void Client::run() {
 	_io.run();
 }
 
+<<<<<<< HEAD
+=======
+void Client::sendRequest(PacketType type, const std::string &payload, Handler handler) {
+	asio::post(_io, [this, type, payload, handler = std::move(handler)]() mutable {
+		if (!_connected) {
+			if (handler)
+				handler(false, {});
+			return;
+		}
+		_pending.push(std::move(handler));
+		packet::asyncSend(_socket, type, payload, [this](std::error_code ec) {
+			if (ec) {
+				_connected = false;
+				if (auto h = std::move(_disconnectHandler))
+					h();
+			}
+		});
+	});
+}
+
+void Client::recvLoop() {
+	packet::asyncRecv(_socket, [this](std::error_code ec, PacketType, std::string data) {
+		if (ec) {
+			_connected = false;
+			if (auto h = std::move(_disconnectHandler))
+				h();
+			while (!_pending.empty()) {
+				auto h = std::move(_pending.front());
+				_pending.pop();
+				if (h)
+					h(false, {});
+			}
+			return;
+		}
+		if (_pending.empty()) {
+			// Unsolicited response — ignore
+			recvLoop();
+			return;
+		}
+		auto handler = std::move(_pending.front());
+		_pending.pop();
+		if (handler)
+			handler(true, std::move(data));
+		recvLoop();
+	});
+}
+
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 void Client::authenticate(const std::string &username,
 						  const std::string &password,
 						  BoolHandler handler) {
@@ -76,7 +130,13 @@ void Client::getBalance(const std::string &username, U64Handler handler) {
 							handler(std::nullopt);
 						return;
 					}
-					auto val = std::stoull(resp);
+					u64 val{};
+					auto [ptr, ec2] = std::from_chars(resp.data(), resp.data() + resp.size(), val);
+					if (ec2 != std::errc{}) {
+						if (handler)
+							handler(std::nullopt);
+						return;
+					}
 					if (handler)
 						handler(val);
 				});
@@ -126,6 +186,7 @@ void Client::toggleAccount(const std::string &username, BoolHandler handler) {
 				});
 }
 
+<<<<<<< HEAD
 void Client::sendRequest(PacketType type,
 						 const std::string &payload,
 						 std::function<void(bool, std::string)> handler) {
@@ -159,4 +220,22 @@ void Client::sendRequest(PacketType type,
 					});
 			});
 	});
+=======
+void Client::ping(BoolHandler handler) {
+	sendRequest(PacketType::ping,
+				"",
+				[handler = std::move(handler)](bool ok, const std::string &resp) mutable {
+					if (handler)
+						handler(ok && resp == "PONG");
+				});
+}
+
+void Client::getLogs(const std::string &username, StringHandler handler) {
+	sendRequest(PacketType::log_req,
+				username,
+				[handler = std::move(handler)](bool ok, const std::string &resp) mutable {
+					if (handler)
+						handler(ok ? std::optional(resp) : std::nullopt);
+				});
+>>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 }
