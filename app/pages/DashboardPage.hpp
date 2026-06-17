@@ -20,7 +20,6 @@ struct DashboardPage {
 
 	private:
 		void onLogout();
-		void onExit();
 
 		Client &_client;
 		ftxui::ScreenInteractive &_screen;

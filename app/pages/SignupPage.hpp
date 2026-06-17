@@ -10,25 +10,24 @@ namespace ftxui {
 	class ScreenInteractive;
 }
 
-struct LoginPage {
-		LoginPage(Client &client,
-				  ftxui::ScreenInteractive &screen,
-				  std::string &appUsername,
-				  int &section);
+struct SignupPage {
+		SignupPage(Client &client,
+				   ftxui::ScreenInteractive &screen,
+				   std::string &appUsername,
+				   int &page);
 		ftxui::Component build();
-		void reset();
 		void setDashboard(DashboardPage &dashboard);
 
 	private:
-		void doLogin();
-		void onLogin();
+		void doCreateAccount();
+		void onSuccess();
 
 		Client &_client;
 		ftxui::ScreenInteractive &_screen;
 		DashboardPage *_dashboard = nullptr;
 
 		std::string &_appUsername;
-		int &_section;
+		int &_page;
 
 		std::string _username;
 		ftxui::Component _userInput;
@@ -36,7 +35,10 @@ struct LoginPage {
 		std::string _password;
 		ftxui::Component _passInput;
 
-		ftxui::Component _loginBtn;
+		std::string _confirmPassword;
+		ftxui::Component _confirmInput;
+
+		ftxui::Component _createBtn;
 
 		std::string _status;
 		bool _loading = false;

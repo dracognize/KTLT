@@ -24,6 +24,7 @@ class Session : public std::enable_shared_from_this<Session> {
 struct Server {
 		explicit Server(u16 port);
 		void run();
+		void stop();
 
 	private:
 		void doAccept();

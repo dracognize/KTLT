@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 
 namespace {
@@ -32,9 +33,17 @@ namespace {
 		std::memcpy(dest, src.data(), len);
 	}
 
+	void appendLog(std::string_view logFile, std::string_view line) {
+		auto path = std::string{"data/"} + std::string{logFile};
+		if (auto f = std::ofstream(path, std::ios::app)) {
+			f << line << '\n';
+		}
+	}
+
 } // namespace
 
 DbManager::DbManager(asio::io_context &io) : _io(io) {
+	std::filesystem::create_directories("data");
 	load();
 	_running = true;
 	_worker = std::thread(&DbManager::dbLoop, this);
@@ -106,7 +115,7 @@ auto DbManager::changePassword(const std::string &username,
 
 auto DbManager::createAccount(const std::string &username,
 							  const std::string &password,
-							  Callback callback) -> void {
+							  BoolCallback callback) -> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(CreateAccountOp{username, password, std::move(callback)});
 	_cv.notify_one();
@@ -124,7 +133,8 @@ auto DbManager::getBalance(const std::string &username, U64Callback callback) ->
 	_cv.notify_one();
 }
 
-auto DbManager::changeBalance(const std::string &username, i64 change, Callback callback) -> void {
+auto DbManager::changeBalance(const std::string &username, i64 change, BoolCallback callback)
+	-> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(ChangeBalanceOp{username, change, std::move(callback)});
 	_cv.notify_one();
@@ -133,7 +143,7 @@ auto DbManager::changeBalance(const std::string &username, i64 change, Callback 
 auto DbManager::transferBalance(const std::string &sender,
 								const std::string &recipient,
 								u64 amount,
-								Callback callback) -> void {
+								BoolCallback callback) -> void {
 	std::lock_guard<std::mutex> lock(_mutex);
 	_queue.emplace(TransferBalanceOp{sender, recipient, amount, std::move(callback)});
 	_cv.notify_one();
@@ -170,16 +180,19 @@ auto DbManager::processItem(WorkItem &&item) -> void {
 						cb();
 				});
 			} else if constexpr (std::is_same_v<T, CreateAccountOp>) {
-				if (!_data.contains(op.username)) {
-					auto &entry = _data[op.username];
-					copyFrom(op.password, entry.password);
-					entry.balance = DEFAULT_BALANCE;
-					copyFrom(op.username + ".log", entry.logFile);
-					entry.isLocked = 0;
-				}
-				post([cb = std::move(op.callback)] {
+				auto created = !_data.contains(op.username);
+			if (created) {
+				auto &entry = _data[op.username];
+				copyFrom(op.password, entry.password);
+				entry.balance = DEFAULT_BALANCE;
+				copyFrom(op.username + ".log", entry.logFile);
+				entry.isLocked = 0;
+				appendLog(asString(entry.logFile),
+						  "account created with balance " + std::to_string(entry.balance));
+			}
+				post([cb = std::move(op.callback), created] {
 					if (cb)
-						cb();
+						cb(created);
 				});
 			} else if constexpr (std::is_same_v<T, ToggleAccountOp>) {
 				auto it = _data.find(op.username);
@@ -199,26 +212,51 @@ auto DbManager::processItem(WorkItem &&item) -> void {
 				});
 			} else if constexpr (std::is_same_v<T, ChangeBalanceOp>) {
 				auto it = _data.find(op.username);
-				if (it != _data.end()) {
-					auto bal = static_cast<i64>(it->second.balance) + op.change;
-					if (bal < 0)
-						bal = 0;
-					it->second.balance = static_cast<u64>(bal);
+				if (it == _data.end()) {
+					post([cb = std::move(op.callback)] {
+						if (cb)
+							cb(false);
+					});
+					return;
 				}
+				if (op.change < 0 && it->second.balance < static_cast<u64>(-op.change)) {
+					post([cb = std::move(op.callback)] {
+						if (cb)
+							cb(false);
+					});
+					return;
+				}
+				auto newBal = static_cast<i64>(it->second.balance) + op.change;
+				it->second.balance = static_cast<u64>(newBal);
+				auto opName = op.change >= 0 ? "deposit" : "withdrawal";
+				auto line = std::string{opName} + " " + (op.change >= 0 ? "+" : "")
+							+ std::to_string(op.change) + " " + std::to_string(it->second.balance);
+				appendLog(asString(it->second.logFile), line);
 				post([cb = std::move(op.callback)] {
 					if (cb)
-						cb();
+						cb(true);
 				});
 			} else if constexpr (std::is_same_v<T, TransferBalanceOp>) {
 				auto src = _data.find(op.sender);
 				auto dst = _data.find(op.recipient);
-				if (src != _data.end() && dst != _data.end() && src->second.balance >= op.amount) {
-					src->second.balance -= op.amount;
-					dst->second.balance += op.amount;
+				if (src == _data.end() || dst == _data.end() || src->second.balance < op.amount) {
+					post([cb = std::move(op.callback)] {
+						if (cb)
+							cb(false);
+					});
+					return;
 				}
+				src->second.balance -= op.amount;
+				dst->second.balance += op.amount;
+				appendLog(asString(src->second.logFile),
+						  "transfer to " + op.recipient + " -" + std::to_string(op.amount) + " "
+							  + std::to_string(src->second.balance));
+				appendLog(asString(dst->second.logFile),
+						  "transfer from " + op.sender + " +" + std::to_string(op.amount) + " "
+							  + std::to_string(dst->second.balance));
 				post([cb = std::move(op.callback)] {
 					if (cb)
-						cb();
+						cb(true);
 				});
 			}
 		},

@@ -14,8 +14,8 @@
 
 #pragma pack(push, 1)
 struct Record {
-		char username[24];
-		char password[24];
+		char username[24]; // Tối đa 23 ký tự + null terminator
+		char password[24]; // Tối đa 23 ký tự + null terminator
 		u64 balance;
 		char logFile[32];
 		b8 isLocked;
@@ -23,7 +23,7 @@ struct Record {
 #pragma pack(pop)
 
 struct DependElementRecord {
-		char password[24];
+		char password[24]; // Tối đa 23 ký tự + null terminator
 		u64 balance;
 		char logFile[32];
 		b8 isLocked;
@@ -53,14 +53,14 @@ struct DbManager {
 							Callback callback) -> void;
 		auto createAccount(const std::string &username,
 						   const std::string &password,
-						   Callback callback) -> void;
+						   BoolCallback callback) -> void;
 		auto toggleAccount(const std::string &username, Callback callback) -> void;
 		auto getBalance(const std::string &username, U64Callback callback) -> void;
-		auto changeBalance(const std::string &username, i64 change, Callback callback) -> void;
+		auto changeBalance(const std::string &username, i64 change, BoolCallback callback) -> void;
 		auto transferBalance(const std::string &sender,
 							 const std::string &recipient,
 							 u64 amount,
-							 Callback callback) -> void;
+							 BoolCallback callback) -> void;
 
 	private:
 		struct AuthOp {
@@ -78,7 +78,7 @@ struct DbManager {
 		struct CreateAccountOp {
 				std::string username;
 				std::string password;
-				Callback callback;
+				BoolCallback callback;
 		};
 
 		struct ToggleAccountOp {
@@ -94,14 +94,14 @@ struct DbManager {
 		struct ChangeBalanceOp {
 				std::string username;
 				i64 change;
-				Callback callback;
+				BoolCallback callback;
 		};
 
 		struct TransferBalanceOp {
 				std::string sender;
 				std::string recipient;
 				u64 amount;
-				Callback callback;
+				BoolCallback callback;
 		};
 
 		using WorkItem = std::variant<AuthOp,

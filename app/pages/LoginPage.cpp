@@ -1,13 +1,20 @@
 #include "app/pages/LoginPage.hpp"
 #include "app/client/Client.hpp"
+#include "app/pages/DashboardPage.hpp"
 
 #include <ftxui/component/component_options.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 
-LoginPage::LoginPage(Client &client, ftxui::ScreenInteractive &screen,
-					std::string &appUsername, int &page)
-	: _client(client), _screen(screen), _appUsername(appUsername), _page(page) {
+LoginPage::LoginPage(Client &client,
+					 ftxui::ScreenInteractive &screen,
+					 std::string &appUsername,
+					 int &section)
+	: _client(client), _screen(screen), _appUsername(appUsername), _section(section) {
+}
+
+void LoginPage::setDashboard(DashboardPage &dashboard) {
+	_dashboard = &dashboard;
 }
 
 void LoginPage::doLogin() {
@@ -32,9 +39,9 @@ void LoginPage::doLogin() {
 }
 
 void LoginPage::onLogin() {
-	if (onEnterDashboard)
-		onEnterDashboard();
-	_page = 1;
+	if (_dashboard)
+		_dashboard->doRefresh();
+	_section = 1;
 }
 
 void LoginPage::reset() {
@@ -45,37 +52,53 @@ void LoginPage::reset() {
 }
 
 ftxui::Component LoginPage::build() {
-	auto passwordOpt = ftxui::InputOption{};
-	passwordOpt.password = true;
-	passwordOpt.multiline = false;
-	passwordOpt.on_enter = [this] { doLogin(); };
 
-	auto userInput = ftxui::Input(&_username, "username");
-	auto passInput = ftxui::Input(&_password, "password", passwordOpt);
-	auto loginBtn = ftxui::Button("Login", [this] { doLogin(); });
+	_userInput = ftxui::Input(&_username,
+							  "username",
+							  ftxui::InputOption{
+								  .multiline = false,
+								  .on_enter = [this] { _passInput->TakeFocus(); },
+							  });
+
+	_passInput = ftxui::Input(&_password,
+							  "password",
+							  ftxui::InputOption{
+								  .password = true,
+								  .multiline = false,
+								  .on_enter =
+									  [this] {
+										  if (_username.empty()) {
+											  _userInput->TakeFocus();
+											  return;
+										  }
+										  doLogin();
+									  },
+							  });
+
+	_loginBtn = ftxui::Button("Login", [this] { doLogin(); }, ftxui::ButtonOption::Border());
 
 	auto container = ftxui::Container::Vertical({
-		userInput,
-		passInput,
-		loginBtn,
+		_userInput,
+		_passInput,
+		_loginBtn,
 	});
 
-	return ftxui::Renderer(container, [this, userInput, passInput, loginBtn] {
+	return ftxui::Renderer(container, [this] {
 		return ftxui::vbox({
 				   ftxui::text("Login") | ftxui::bold | ftxui::center,
 				   ftxui::separator(),
 				   ftxui::hbox({
 					   ftxui::text(" Username: "),
-					   userInput->Render() | ftxui::flex,
-				   }),
+					   _userInput->Render() | ftxui::flex,
+				   }) | ftxui::border,
 				   ftxui::hbox({
 					   ftxui::text(" Password: "),
-					   passInput->Render() | ftxui::flex,
-				   }),
+					   _passInput->Render() | ftxui::flex,
+				   }) | ftxui::border,
 				   ftxui::separator(),
-				   loginBtn->Render() | ftxui::center,
-				   ftxui::text(_status) | ftxui::center,
+				   _loginBtn->Render() | ftxui::center,
+				   _status.empty() ? ftxui::emptyElement() : ftxui::text(_status) | ftxui::center,
 			   })
-			   | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 24);
+			   | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 24) | ftxui::center;
 	});
 }

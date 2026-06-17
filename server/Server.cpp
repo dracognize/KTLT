@@ -51,15 +51,19 @@ void Session::doRead() {
 			}
 			auto user = data.substr(0, delim);
 			auto pass = data.substr(delim + 1);
-			_db.createAccount(user, pass, [this, self, user] {
-				ServerLog::create( _peer + " user '" + user + "' created");
-				doWrite(std::to_underlying(PacketType::account_create), "OK");
+			_db.createAccount(user, pass, [this, self, user](bool created) {
+				if (created) {
+					ServerLog::create( _peer + " user '" + user + "' created");
+				} else {
+					ServerLog::warn( _peer + " user '" + user + "' already exists");
+				}
+				doWrite(std::to_underlying(PacketType::account_create), created ? "OK" : "FAIL");
 			});
 			break;
 		}
 		case balance_req: {
 			_db.getBalance(data, [this, self](u64 balance) {
-				doWrite(std::to_underlying(PacketType::balance_resp), std::to_string(balance));
+				doWrite(std::to_underlying(PacketType::balance_req), std::to_string(balance));
 			});
 			break;
 		}
@@ -71,9 +75,11 @@ void Session::doRead() {
 			}
 			auto user = data.substr(0, delim);
 			auto change = std::stoll(data.substr(delim + 1));
-			_db.changeBalance(user, change, [this, self, user] {
-				ServerLog::balance( _peer + " user '" + user + "' balance changed");
-				doWrite(std::to_underlying(PacketType::balance_change), "OK");
+			_db.changeBalance(user, change, [this, self, user](bool ok) {
+				if (ok) {
+					ServerLog::balance( _peer + " user '" + user + "' balance changed");
+				}
+				doWrite(std::to_underlying(PacketType::balance_change), ok ? "OK" : "FAIL");
 			});
 			break;
 		}
@@ -91,9 +97,11 @@ void Session::doRead() {
 			auto sender = data.substr(0, delim1);
 			auto recipient = data.substr(delim1 + 1, delim2 - delim1 - 1);
 			auto amount = std::stoull(data.substr(delim2 + 1));
-			_db.transferBalance(sender, recipient, amount, [this, self, sender] {
-				ServerLog::transfer( _peer + " transfer from '" + sender + "' OK");
-				doWrite(std::to_underlying(PacketType::balance_transfer), "OK");
+			_db.transferBalance(sender, recipient, amount, [this, self, sender](bool ok) {
+				if (ok) {
+					ServerLog::transfer( _peer + " transfer from '" + sender + "' OK");
+				}
+				doWrite(std::to_underlying(PacketType::balance_transfer), ok ? "OK" : "FAIL");
 			});
 			break;
 		}
@@ -121,6 +129,10 @@ Server::Server(u16 port)
 	: _acceptor(_io, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), _db(_io) {
 	ServerLog::info("listening on port " + std::to_string(port));
 	doAccept();
+}
+
+void Server::stop() {
+	_io.stop();
 }
 
 void Server::run() {

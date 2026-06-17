@@ -33,6 +33,8 @@ void Client::connect(BoolHandler handler) {
 				results,
 				[this, handler = std::move(handler)](std::error_code ec2, auto) mutable {
 					_connected = !ec2;
+					if (_connected)
+						recvLoop();
 					if (handler)
 						handler(_connected);
 				});
@@ -41,6 +43,45 @@ void Client::connect(BoolHandler handler) {
 
 void Client::run() {
 	_io.run();
+}
+
+void Client::sendRequest(PacketType type,
+						 const std::string &payload,
+						 Handler handler) {
+	asio::post(_io, [this, type, payload, handler = std::move(handler)]() mutable {
+		if (!_connected) {
+			if (handler)
+				handler(false, {});
+			return;
+		}
+		_pending.push(std::move(handler));
+		packet::asyncSend(_socket, type, payload, [this](std::error_code ec) {
+			if (ec) {
+				_connected = false;
+			}
+		});
+	});
+}
+
+void Client::recvLoop() {
+	packet::asyncRecv(_socket,
+					  [this](std::error_code ec, PacketType, std::string data) {
+						  if (ec) {
+							  _connected = false;
+							  while (!_pending.empty()) {
+								  auto h = std::move(_pending.front());
+								  _pending.pop();
+								  if (h)
+									  h(false, {});
+							  }
+							  return;
+						  }
+						  auto handler = std::move(_pending.front());
+						  _pending.pop();
+						  if (handler)
+							  handler(true, std::move(data));
+						  recvLoop();
+					  });
 }
 
 void Client::authenticate(const std::string &username,
@@ -82,7 +123,9 @@ void Client::getBalance(const std::string &username, U64Handler handler) {
 				});
 }
 
-void Client::changeBalance(const std::string &username, i64 change, BoolHandler handler) {
+void Client::changeBalance(const std::string &username,
+						   i64 change,
+						   BoolHandler handler) {
 	auto payload = username + ":" + std::to_string(change);
 	sendRequest(PacketType::balance_change,
 				payload,
@@ -124,39 +167,4 @@ void Client::toggleAccount(const std::string &username, BoolHandler handler) {
 					if (handler)
 						handler(ok && resp == "OK");
 				});
-}
-
-void Client::sendRequest(PacketType type,
-						 const std::string &payload,
-						 std::function<void(bool, std::string)> handler) {
-	asio::post(_io, [this, type, payload, handler = std::move(handler)]() mutable {
-		if (!_connected) {
-			if (handler)
-				handler(false, {});
-			return;
-		}
-
-		packet::asyncSend(
-			_socket, type, payload,
-			[this, handler = std::move(handler)](std::error_code ec) mutable {
-				if (ec) {
-					_connected = false;
-					if (handler)
-						handler(false, {});
-					return;
-				}
-				packet::asyncRecv(
-					_socket,
-					[handler = std::move(handler)](
-						std::error_code ec2, PacketType, std::string data) mutable {
-						if (ec2) {
-							if (handler)
-								handler(false, {});
-							return;
-						}
-						if (handler)
-							handler(true, data);
-					});
-			});
-	});
 }

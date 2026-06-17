@@ -7,6 +7,7 @@
 #include <atomic>
 #include <functional>
 #include <optional>
+#include <queue>
 #include <string>
 
 struct Client {
@@ -45,10 +46,13 @@ struct Client {
 		void toggleAccount(const std::string &username, BoolHandler handler);
 
 private:
+		using Handler = std::function<void(bool, std::string)>;
+
 		void doConnect();
 		void sendRequest(PacketType type,
 						 const std::string &payload,
-						 std::function<void(bool, std::string)> handler);
+						 Handler handler);
+		void recvLoop();
 
 		asio::io_context _io;
 		asio::executor_work_guard<asio::io_context::executor_type> _work;
@@ -56,4 +60,5 @@ private:
 		std::string _host;
 		u16 _port;
 		std::atomic<bool> _connected{false};
+		std::queue<Handler> _pending;
 };

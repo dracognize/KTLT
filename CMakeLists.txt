@@ -31,6 +31,7 @@ add_executable(app
 				app/client/Client.cpp
 				app/pages/LoginPage.cpp
 				app/pages/DashboardPage.cpp
+				app/pages/SignupPage.cpp
 )
 
 target_include_directories(app PUBLIC

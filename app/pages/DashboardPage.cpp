@@ -2,6 +2,7 @@
 #include "app/client/Client.hpp"
 #include "app/pages/LoginPage.hpp"
 
+#include <ftxui/component/component.hpp>
 #include <ftxui/component/component_options.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
@@ -37,33 +38,28 @@ void DashboardPage::onLogout() {
 	_screen.RequestAnimationFrame();
 }
 
-void DashboardPage::onExit() {
-	_screen.Exit();
-}
-
 ftxui::Component DashboardPage::build() {
 	auto refreshBtn = ftxui::Button("Refresh", [this] { doRefresh(); });
 	auto logoutBtn = ftxui::Button("Logout", [this] { onLogout(); });
-	auto exitBtn = ftxui::Button("Exit", [this] { onExit(); });
 
-	auto container = ftxui::Container::Vertical({
+	auto container = ftxui::Container::Horizontal({
 		refreshBtn,
 		logoutBtn,
-		exitBtn,
 	});
 
-	return ftxui::Renderer(container, [this, refreshBtn, logoutBtn, exitBtn] {
+	return ftxui::Renderer(container, [this, refreshBtn, logoutBtn] {
 		return ftxui::vbox({
 				   ftxui::text("Dashboard") | ftxui::bold | ftxui::center,
 				   ftxui::separator(),
 				   ftxui::text(" Welcome, " + _username + "!"),
 				   ftxui::text(" Balance: " + _balanceStr),
 				   ftxui::separator(),
-				   refreshBtn->Render() | ftxui::center,
-				   logoutBtn->Render() | ftxui::center,
-				   exitBtn->Render() | ftxui::center,
+				   ftxui::hbox({
+					   refreshBtn->Render(),
+					   logoutBtn->Render(),
+				   }) | ftxui::center,
 				   ftxui::text(_status) | ftxui::center,
 			   })
-			   | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 40);
+			   | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 24) | ftxui::center;
 	});
 }
