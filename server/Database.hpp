@@ -1,5 +1,6 @@
 #pragma once
 
+#include "libs/base/hash_map.hpp"
 #include "libs/base/types.hpp"
 
 #include <asio.hpp>
@@ -12,6 +13,18 @@
 #include <thread>
 #include <variant>
 
+namespace base {
+	// base::hash<T> mac dinh yeu cau T trivially_copyable (xem hash.hpp).
+	// std::string khong thoa man dieu do, nen can specialization rieng
+	// de base::HashMap<std::string, V> compile va hoat dong dung.
+	template <>
+	struct hash<std::string> {
+			[[nodiscard]] usize operator()(const std::string& key) const noexcept {
+				return murmur::hash64(key.data(), static_cast<i32>(key.size()));
+			}
+	};
+} // namespace base
+
 #pragma pack(push, 1)
 struct Record {
 		char username[24];
@@ -20,6 +33,7 @@ struct Record {
 		char logFile[32];
 		b8 isLocked;
 };
+
 #pragma pack(pop)
 
 struct DependElementRecord {
@@ -28,6 +42,26 @@ struct DependElementRecord {
 		char logFile[32];
 		b8 isLocked;
 };
+
+// Loai giao dich, dung cho ca luu file (TransactionRecord.type) va API trong.
+enum class TransactionType : u8 {
+	deposit       = 0, // nap tien (changeBalance voi change > 0)
+	withdraw      = 1, // rut tien (changeBalance voi change < 0)
+	transfer_out  = 2, // ben gui trong giao dich chuyen tien
+	transfer_in   = 3, // ben nhan trong giao dich chuyen tien
+};
+ 
+#pragma pack(push, 1)
+struct TransactionRecord {
+		char username[24];      // tai khoan chu cua ban ghi nay (nguoi se thay ban ghi trong lich su cua minh)
+		char counterparty[24];  // doi tac giao dich (nguoi gui/nhan), rong neu nap/rut
+		u64  amount;
+		u64  balanceAfter;      // so du cua "username" SAU giao dich nay
+		u64  timestamp;         // unix epoch seconds
+		u8   type;              // gia tri cua TransactionType
+};
+
+#pragma pack(pop)
 
 struct DbManager {
 		explicit DbManager(asio::io_context &io);
@@ -116,7 +150,7 @@ struct DbManager {
 		static constexpr u64 DEFAULT_BALANCE = 100'000;
 
 		asio::io_context &_io;
-		std::map<std::string, DependElementRecord> _data;
+		base::HashMap<std::string, DependElementRecord> _data;
 
 		std::mutex _mutex;
 

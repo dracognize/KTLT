@@ -97,6 +97,27 @@ void Session::doRead() {
 			});
 			break;
 		}
+		case account_change_password: {
+			auto delim = data.find(':');
+			if (delim == std::string::npos) {
+				doWrite(std::to_underlying(account_change_password), "FAIL");
+				return;
+			}
+			auto user = data.substr(0, delim);
+			auto newPass = data.substr(delim + 1);
+			_db.changePassword(user, newPass, [this, self, user] {
+				ServerLog::password( _peer + " user '" + user + "' password changed");
+				doWrite(std::to_underlying(PacketType::account_change_password), "OK");
+			});
+			break;
+		}
+		case account_toggle: {
+			_db.toggleAccount(data, [this, self, user = data] {
+				ServerLog::toggle( _peer + " user '" + user + "' lock toggled");
+				doWrite(std::to_underlying(PacketType::account_toggle), "OK");
+			});
+			break;
+		}
 		default:
 			ServerLog::warn(
 					  _peer + " unknown packet type " + std::to_string(std::to_underlying(type)));

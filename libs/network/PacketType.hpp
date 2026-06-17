@@ -12,4 +12,5 @@ enum class PacketType : u8 {
 	ping           = 6,
 	account_change_password = 7,
 	account_toggle = 8,
+	transaction_history = 9,
 };

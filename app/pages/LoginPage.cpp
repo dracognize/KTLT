@@ -53,11 +53,13 @@ ftxui::Component LoginPage::build() {
 	auto userInput = ftxui::Input(&_username, "username");
 	auto passInput = ftxui::Input(&_password, "password", passwordOpt);
 	auto loginBtn = ftxui::Button("Login", [this] { doLogin(); });
-
+	auto registerBtn = ftxui::Button("Register", [this] { _page = 2; });
+	
 	auto container = ftxui::Container::Vertical({
 		userInput,
 		passInput,
 		loginBtn,
+		registerBtn,
 	});
 
 	return ftxui::Renderer(container, [this, userInput, passInput, loginBtn] {

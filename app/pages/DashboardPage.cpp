@@ -45,9 +45,14 @@ ftxui::Component DashboardPage::build() {
 	auto refreshBtn = ftxui::Button("Refresh", [this] { doRefresh(); });
 	auto logoutBtn = ftxui::Button("Logout", [this] { onLogout(); });
 	auto exitBtn = ftxui::Button("Exit", [this] { onExit(); });
+	auto settingsBtn = ftxui::Button("Account Settings", [this] { _page = 3; });
+	auto logoutBtn = ftxui::Button("Logout", [this] { onLogout(); });
+	auto exitBtn = ftxui::Button("Exit", [this] { onExit(); });
 
 	auto container = ftxui::Container::Vertical({
 		refreshBtn,
+		transferBtn,
+		settingsBtn,
 		logoutBtn,
 		exitBtn,
 	});
@@ -60,6 +65,8 @@ ftxui::Component DashboardPage::build() {
 				   ftxui::text(" Balance: " + _balanceStr),
 				   ftxui::separator(),
 				   refreshBtn->Render() | ftxui::center,
+				   transferBtn->Render() | ftxui::center,
+				   settingsBtn->Render() | ftxui::center,
 				   logoutBtn->Render() | ftxui::center,
 				   exitBtn->Render() | ftxui::center,
 				   ftxui::text(_status) | ftxui::center,

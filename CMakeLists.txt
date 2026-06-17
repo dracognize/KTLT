@@ -31,7 +31,11 @@ add_executable(app
 				app/client/Client.cpp
 				app/pages/LoginPage.cpp
 				app/pages/DashboardPage.cpp
-)
+				app/pages/DashboardPage.cpp
+				app/pages/RegisterPage.cpp
+				app/pages/AccountSettingsPage.cpp
+				app/pages/TransferPage.cpp
+				)
 
 target_include_directories(app PUBLIC
 				${CMAKE_SOURCE_DIR}
@@ -63,6 +67,7 @@ target_link_libraries(server PUBLIC
 )
 
 if(WIN32)
+    target_link_libraries(app PUBLIC ws2_32 mswsock)
     target_link_libraries(server PRIVATE ws2_32 mswsock)
 endif()
 
