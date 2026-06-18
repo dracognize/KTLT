@@ -1,6 +1,8 @@
 #include "server/Database.hpp"
 #include "server/ServerLog.hpp"
 
+#include "libs/base/string.hpp"
+#include "libs/base/vector.hpp"
 #include "libs/network/Packet.hpp"
 #include "libs/network/PacketType.hpp"
 #include "server/Server.hpp"
@@ -52,11 +54,6 @@ void Session::doRead() {
 			}
 			auto user = data.substr(0, delim);
 			auto pass = data.substr(delim + 1);
-<<<<<<< HEAD
-			_db.createAccount(user, pass, [this, self, user] {
-				ServerLog::create( _peer + " user '" + user + "' created");
-				doWrite(std::to_underlying(PacketType::account_create), "OK");
-=======
 			_db.createAccount(user, pass, [this, self, user](bool created) {
 				if (created) {
 					ServerLog::create(_peer + " user '" + user + "' created");
@@ -64,13 +61,12 @@ void Session::doRead() {
 					ServerLog::warn(_peer + " user '" + user + "' already exists");
 				}
 				doWrite(std::to_underlying(PacketType::account_create), created ? "OK" : "FAIL");
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 			});
 			break;
 		}
 		case balance_req: {
 			_db.getBalance(data, [this, self](u64 balance) {
-				doWrite(std::to_underlying(PacketType::balance_resp), std::to_string(balance));
+				doWrite(std::to_underlying(PacketType::balance_req), std::to_string(balance));
 			});
 			break;
 		}
@@ -81,12 +77,6 @@ void Session::doRead() {
 				return;
 			}
 			auto user = data.substr(0, delim);
-<<<<<<< HEAD
-			auto change = std::stoll(data.substr(delim + 1));
-			_db.changeBalance(user, change, [this, self, user] {
-				ServerLog::balance( _peer + " user '" + user + "' balance changed");
-				doWrite(std::to_underlying(PacketType::balance_change), "OK");
-=======
 			i64 change = 0;
 			try {
 				change = std::stoll(data.substr(delim + 1));
@@ -99,7 +89,6 @@ void Session::doRead() {
 					ServerLog::balance(_peer + " user '" + user + "' balance changed");
 				}
 				doWrite(std::to_underlying(PacketType::balance_change), ok ? "OK" : "FAIL");
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 			});
 			break;
 		}
@@ -116,33 +105,6 @@ void Session::doRead() {
 			}
 			auto sender = data.substr(0, delim1);
 			auto recipient = data.substr(delim1 + 1, delim2 - delim1 - 1);
-<<<<<<< HEAD
-			auto amount = std::stoull(data.substr(delim2 + 1));
-			_db.transferBalance(sender, recipient, amount, [this, self, sender] {
-				ServerLog::transfer( _peer + " transfer from '" + sender + "' OK");
-				doWrite(std::to_underlying(PacketType::balance_transfer), "OK");
-			});
-			break;
-		}
-		case account_change_password: {
-			auto delim = data.find(':');
-			if (delim == std::string::npos) {
-				doWrite(std::to_underlying(account_change_password), "FAIL");
-				return;
-			}
-			auto user = data.substr(0, delim);
-			auto newPass = data.substr(delim + 1);
-			_db.changePassword(user, newPass, [this, self, user] {
-				ServerLog::password( _peer + " user '" + user + "' password changed");
-				doWrite(std::to_underlying(PacketType::account_change_password), "OK");
-			});
-			break;
-		}
-		case account_toggle: {
-			_db.toggleAccount(data, [this, self, user = data] {
-				ServerLog::toggle( _peer + " user '" + user + "' lock toggled");
-				doWrite(std::to_underlying(PacketType::account_toggle), "OK");
-=======
 			u64 amount = 0;
 			try {
 				amount = std::stoull(data.substr(delim2 + 1));
@@ -155,7 +117,6 @@ void Session::doRead() {
 					ServerLog::transfer(_peer + " transfer from '" + sender + "' OK");
 				}
 				doWrite(std::to_underlying(PacketType::balance_transfer), ok ? "OK" : "FAIL");
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 			});
 			break;
 		}
@@ -175,16 +136,17 @@ void Session::doRead() {
 				doWrite(std::to_underlying(log_req), "");
 				break;
 			}
-			std::vector<std::string> lines;
-			std::string line;
-			while (std::getline(file, line)) {
-				lines.push_back(std::move(line));
+			base::Vector<base::String> lines;
+			std::string tmp;
+			while (std::getline(file, tmp)) {
+				lines.push_back(base::String(tmp.data(), tmp.size()));
 			}
 			auto count = lines.size();
 			auto start = count > 20 ? count - 20 : 0;
 			std::string result;
 			for (auto i = start; i < count; ++i) {
-				result += lines[i] + '\n';
+				result += lines[i].view();
+				result += '\n';
 			}
 			doWrite(std::to_underlying(log_req), result);
 			break;
@@ -213,6 +175,29 @@ void Session::doRead() {
 							  [this, self](bool) { doWrite(std::to_underlying(account_toggle), "OK"); });
 			break;
 		}
+		case txn_history_req: {
+			auto delim = data.find(':');
+			if (delim == std::string::npos) {
+				doWrite(std::to_underlying(txn_history_req), "");
+				return;
+			}
+			auto user = data.substr(0, delim);
+			u64 count = 20; // default
+			try {
+				count = std::stoull(data.substr(delim + 1));
+			} catch (...) {
+			}
+			_db.getTransactions(user, count, [this, self](std::string result) {
+				doWrite(std::to_underlying(PacketType::txn_history_req), result);
+			});
+			break;
+		}
+		case user_search_req: {
+			_db.searchUsers(data, [this, self](std::string result) {
+				doWrite(std::to_underlying(user_search_req), result);
+			});
+			break;
+		}
 		default:
 			ServerLog::warn(_peer + " unknown packet type "
 							+ std::to_string(std::to_underlying(type)));
@@ -239,8 +224,6 @@ Server::Server(u16 port)
 	doAccept();
 }
 
-<<<<<<< HEAD
-=======
 void Server::stop() {
 	_io.stop();
 }
@@ -249,7 +232,6 @@ auto Server::ioContext() -> asio::io_context & {
 	return _io;
 }
 
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 void Server::run() {
 	_io.run();
 	ServerLog::info("shutting down");

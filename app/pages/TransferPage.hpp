@@ -1,26 +1,15 @@
 #pragma once
 
-<<<<<<< HEAD
-#include <ftxui/component/component.hpp>
-#include <string>
-
-class Client;
-namespace ftxui {
-class ScreenInteractive;
-}
-
-struct TransferPage {
-		TransferPage(Client &client, ftxui::ScreenInteractive &screen,
-					 const std::string &username, int &page);
-		ftxui::Component build();
-		void reset();
-=======
+#include "libs/base/hash_set.hpp"
+#include "libs/base/string.hpp"
 #include "libs/base/types.hpp"
+#include "libs/base/vector.hpp"
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <string>
+#include <vector>
 
 class Client;
 struct DashboardPage;
@@ -32,23 +21,15 @@ struct TransferPage {
 					 int &postAuthPage,
 					 DashboardPage &dashboard);
 		ftxui::Component build();
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 
 	private:
 		void doTransfer();
+		void onRecipientChanged();
+		void fetchUserDirectory();
+		void filterSuggestions();
 
 		Client &_client;
 		ftxui::ScreenInteractive &_screen;
-<<<<<<< HEAD
-		const std::string &_username; // sender = currently logged in user
-		int &_page;
-
-		std::string _recipient;
-		std::string _amountStr;
-		std::string _status;
-		bool _loading = false;
-};
-=======
 		DashboardPage &_dashboard;
 
 		const std::string &_username;
@@ -64,5 +45,14 @@ struct TransferPage {
 		std::string _status;
 		bool _loading = false;
 		int _spinnerFrame = 0;
+
+		// ── User directory / autocomplete ──
+		base::HashSet<base::String> _userCache;
+		base::Vector<base::String> _suggestions;
+		std::vector<std::string> _suggestionStrings;
+		ftxui::Component _suggestionsMenu;
+		int _selectedSuggestion = 0;
+		bool _showSuggestions = false;
+		bool _cacheLoaded = false;
+		bool _cacheLoading = false;
 };
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)

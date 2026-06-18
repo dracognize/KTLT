@@ -33,6 +33,8 @@ struct WithdrawPage {
 		ftxui::Component _withdrawBtn;
 		ftxui::Component _backBtn;
 
+		ftxui::Component _confirmYes;
+
 		std::string _status;
 		bool _loading = false;
 		int _spinnerFrame = 0;

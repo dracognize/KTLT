@@ -1,8 +1,10 @@
 #include "app/pages/HistoryPage.hpp"
+#include "app/Theme.hpp"
 #include "app/client/Client.hpp"
 #include "app/pages/DashboardPage.hpp"
+#include "libs/base/algorithm.hpp"
 
-#include <ftxui/component/component.hpp>
+#include <ftxui/component/component_options.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <charconv>
@@ -13,24 +15,22 @@ HistoryPage::HistoryPage(Client &client,
                          const std::string &username,
                          DashboardPage &dashboard)
     : _client(client), _screen(screen), _username(username), _dashboard(dashboard) {
-    _pendingRefresh = true;
     _lastRefreshTime = std::chrono::steady_clock::now();
 }
 
 void HistoryPage::doRefresh() {
-    if (_loading) [[unlikely]]
+    if (_loading)
         return;
     _loading = true;
     _status.clear();
     _lastRefreshTime = std::chrono::steady_clock::now();
     _spinnerFrame = 0;
-    _client.getLogs(_username, [this](std::optional<std::string> logs) {
-        auto parsed = std::vector<DashboardPage::LogEntry>{};
-        auto history = std::vector<u64>{};
+    _client.getTransactionHistory(_username, 100, [this](std::optional<std::string> resp) {
+        auto parsed = base::Vector<DashboardPage::LogEntry>{};
         auto ok = false;
-        if (logs) {
+        if (resp) {
             ok = true;
-            DashboardPage::parseRawLogs(*logs, parsed, history);
+            DashboardPage::parseTransactionHistory(*resp, parsed);
         }
         _screen.Post([this, parsed = std::move(parsed), ok] {
             _loading = false;
@@ -46,129 +46,121 @@ void HistoryPage::doRefresh() {
     });
 }
 
-// ── Append helpers ──
-
-static void appendPaddedRight(std::string &out, std::string_view s, std::size_t n) {
-    if (s.size() >= n) {
-        out.append(s.substr(0, n));
-    } else {
-        out.append(s);
-        out.append(n - s.size(), ' ');
+// Sort helpers
+static auto getHeaderLabel(HistoryPage::SortColumn col) -> std::string_view {
+    switch (col) {
+        case HistoryPage::Time:      return " TIME ";
+        case HistoryPage::Operation: return " OPERATION ";
+        case HistoryPage::Amount:    return " CHANGE ";
+        case HistoryPage::Balance:   return " BALANCE ";
     }
+    return "?";
 }
 
-static void appendPaddedLeft(std::string &out, std::string_view s, std::size_t n) {
-    if (s.size() >= n) {
-        out.append(s.substr(0, n));
-    } else {
-        out.append(n - s.size(), ' ');
-        out.append(s);
-    }
+static auto makeComparator(HistoryPage::SortColumn col, bool asc) {
+    return [col, asc](const DashboardPage::LogEntry &a,
+                      const DashboardPage::LogEntry &b) -> bool {
+        switch (col) {
+            case HistoryPage::Time:
+                return asc ? a.time < b.time : b.time < a.time;
+            case HistoryPage::Operation:
+                return asc ? a.operation < b.operation : b.operation < a.operation;
+            case HistoryPage::Amount:
+                return asc ? a.amount < b.amount : b.amount < a.amount;
+            case HistoryPage::Balance:
+                return asc ? a.balance < b.balance : b.balance < a.balance;
+        }
+        return false;
+    };
 }
-
-static void formatLogLine(std::string &line,
-                          std::string_view time,
-                          std::string_view operation,
-                          std::string_view amount,
-                          u64 balance) {
-    char balBuf[32];
-    auto [p, _] = std::to_chars(balBuf, balBuf + sizeof(balBuf), balance);
-    auto balStr = std::string_view(balBuf, static_cast<std::size_t>(p - balBuf));
-
-    line.clear();
-    line.reserve(64);
-    line += ' ';
-    appendPaddedRight(line, time, 10);
-    appendPaddedRight(line, operation, 22);
-    appendPaddedLeft(line, amount.empty() ? std::string_view("--") : amount, 12);
-    line += "  ";
-    appendPaddedLeft(line, balStr, 12);
-}
-
-// ── Build ──
 
 ftxui::Component HistoryPage::build() {
-    auto renderer = ftxui::Renderer([this] {
-        ++_spinnerFrame;
+    auto input_option = ftxui::InputOption::Default();
+    _searchInput = ftxui::Input(&_searchStr, "search transactions...", input_option);
 
-        // Trigger a refresh on first render
-        if (_pendingRefresh) {
-            _pendingRefresh = false;
-            _screen.Post([this] { doRefresh(); });
-        }
+    auto headerRow = ftxui::Container::Horizontal({});
+    for (int ci = 0; ci < 4; ++ci) {
+        auto col = static_cast<SortColumn>(ci);
+        auto btn = ftxui::Button(
+            std::string(getHeaderLabel(col)),
+            [this, col] {
+                if (_sortColumn == col) _sortAscending = !_sortAscending;
+                else { _sortColumn = col; _sortAscending = true; }
+                _screen.RequestAnimationFrame();
+            },
+            theme::Button(theme::Sapphire));
+        headerRow->Add(btn);
+    }
 
-        // ── Last updated timestamp ──────────────────────────────
-        auto now = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - _lastRefreshTime).count();
-        std::string timeAgo;
-        if (elapsed < 5) {
-            timeAgo = "just now";
-        } else if (elapsed < 60) {
-            timeAgo = std::to_string(elapsed) + "s ago";
-        } else if (elapsed < 3600) {
-            timeAgo = std::to_string(elapsed / 60) + "m ago";
-        } else {
-            timeAgo = "a while ago";
-        }
-
-        // ── Table Content ───────────────────────────────────────
-        auto elements = ftxui::Elements();
-        elements.reserve(4 + _entries.size());
-
-        if (_loading) {
-            elements.push_back(ftxui::text(" Loading history...") | ftxui::dim);
-        } else if (!_status.empty()) {
-            elements.push_back(ftxui::text(" " + _status));
-        } else if (_entries.empty()) {
-            elements.push_back(ftxui::text(" No transactions yet") | ftxui::dim);
-        } else {
-            // Header
-            std::string hdr;
-            hdr.reserve(1 + 10 + 22 + 12 + 2 + 12);
-            hdr += ' ';
-            appendPaddedRight(hdr, "Time", 10);
-            appendPaddedRight(hdr, "Operation", 22);
-            appendPaddedLeft(hdr, "Change", 12);
-            hdr += "  ";
-            appendPaddedLeft(hdr, "Balance", 12);
-            elements.push_back(ftxui::text(std::move(hdr)) | ftxui::bold);
-            elements.push_back(ftxui::separator() | ftxui::dim);
-
-            // Data rows
-            std::string line;
+    auto tableRenderer = ftxui::Renderer([this]() -> ftxui::Element {
+        auto displayEntries = base::Vector<DashboardPage::LogEntry>{};
+        if (!_loading && _status.empty()) {
+            auto filterStr = base::String(std::string_view{_searchStr});
             for (const auto &e : _entries) {
-                formatLogLine(line, e.time, e.operation, e.amount, e.balance);
-                elements.push_back(ftxui::text(line));
+                if (filterStr.empty() || e.operation.find(filterStr) != base::String::npos)
+                    displayEntries.push_back(e);
+            }
+            if (displayEntries.size() > 1) {
+                auto cmp = makeComparator(_sortColumn, _sortAscending);
+                base::sort(displayEntries.begin(), displayEntries.end(), cmp);
             }
         }
 
-        auto table = ftxui::vbox(std::move(elements))
-                     | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 10);
+        auto elements = ftxui::Elements();
+        if (_loading) {
+            elements.push_back(ftxui::hbox({
+                ftxui::spinner(21, ++_spinnerFrame) | ftxui::color(theme::Sapphire),
+                ftxui::text(" Loading history..."),
+            }) | ftxui::center);
+        } else if (!_status.empty()) {
+            elements.push_back(ftxui::text(_status) | ftxui::color(theme::Red) | ftxui::center);
+        } else if (displayEntries.empty()) {
+            elements.push_back(ftxui::text("No transactions found") | ftxui::dim | ftxui::center);
+        } else {
+            for (const auto &e : displayEntries) {
+                auto opColor = theme::Text;
+                if (e.operation.view().find("Deposit") != std::string::npos || e.operation.view().find("Transfer In") != std::string::npos) opColor = theme::Green;
+                else if (e.operation.view().find("Withdraw") != std::string::npos || e.operation.view().find("Transfer Out") != std::string::npos) opColor = theme::Red;
 
-        // ── Footer info ─────────────────────────────────────────
-        auto footer = ftxui::hbox({
-            ftxui::text(" Last updated: ") | ftxui::dim,
-            ftxui::text(timeAgo) | ftxui::bold,
-            ftxui::filler(),
-            ftxui::text(" Auto-refresh") | ftxui::dim,
-        });
+                elements.push_back(ftxui::hbox({
+                    ftxui::text(" " + std::string(e.time.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::color(theme::Overlay2),
+                    ftxui::text(" " + std::string(e.operation.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 22) | ftxui::color(opColor),
+                    ftxui::text(std::string(e.amount.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::color(opColor) | ftxui::align_right,
+                    ftxui::filler(),
+                    ftxui::text(std::to_string(e.balance) + " ") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::align_right | ftxui::color(theme::Text),
+                }));
+            }
+        }
 
-        // ── Entry count ─────────────────────────────────────────
-        auto countInfo = ftxui::text(" Showing " + std::to_string(_entries.size()) + " entries ")
-                         | ftxui::dim | ftxui::center;
-
-        return ftxui::vbox({
-                   ftxui::text("Transaction History") | ftxui::bold | ftxui::center,
-                   ftxui::separator(),
-                   ftxui::text(""),
-                   table | ftxui::border | ftxui::flex,
-                   countInfo,
-                   footer,
-                   ftxui::filler(),
-                   ftxui::text("[1] Dashboard  [2] History  [3] Deposit  [4] Withdraw  [5] Transfer  [6] Settings") | ftxui::dim | ftxui::center,
-               })
-               | ftxui::border;
+        return ftxui::vbox(std::move(elements));
     });
 
-    return renderer;
+    auto container = ftxui::Container::Vertical({_searchInput, headerRow, tableRenderer});
+
+    return ftxui::Renderer(container, [this, tableRenderer, headerRow]() -> ftxui::Element {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - _lastRefreshTime).count();
+        std::string timeAgo = (elapsed < 5) ? "just now" : std::to_string(elapsed) + "s ago";
+
+        return ftxui::vbox({
+            ftxui::text("TRANSACTION HISTORY") | ftxui::bold | ftxui::center | ftxui::color(theme::Sapphire),
+            ftxui::separator() | ftxui::color(theme::Sapphire),
+            ftxui::hbox({
+                ftxui::text(" SEARCH ") | ftxui::color(theme::Subtext0) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 10),
+                _searchInput->Render() | ftxui::flex,
+            }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
+            headerRow->Render() | ftxui::center,
+            ftxui::separator() | ftxui::color(theme::Surface2),
+            tableRenderer->Render() | ftxui::vscroll_indicator | ftxui::frame | ftxui::flex,
+            ftxui::separator() | ftxui::color(theme::Surface2),
+            ftxui::hbox({
+                ftxui::text(" SORT: ") | ftxui::color(theme::Subtext0),
+                ftxui::text(std::string(getHeaderLabel(_sortColumn))) | ftxui::bold | ftxui::color(theme::Sapphire),
+                ftxui::text(_sortAscending ? " ▲" : " ▼") | ftxui::color(theme::Sapphire),
+                ftxui::filler(),
+                ftxui::text("Last updated: " + timeAgo) | ftxui::dim,
+            }),
+            ftxui::text("Showing " + std::to_string(_entries.size()) + " entries") | ftxui::dim | ftxui::center,
+        });
+    });
 }

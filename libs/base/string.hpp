@@ -4,6 +4,7 @@
 #include <iterator>
 #include <memory>
 #include <ostream>
+#include <string_view>
 #include <utility>
 
 #include "types.hpp"
@@ -91,6 +92,12 @@ namespace base {
 				: BasicString(s, t_Traits::length(s), alloc) {
 			}
 
+			constexpr BasicString(
+				std::basic_string_view<value_type, traits_type> sv,
+				const t_Allocator &alloc = t_Allocator())
+				: BasicString(sv.data(), sv.size(), alloc) {
+			}
+
 			constexpr ~BasicString() {
 				if (_isLong) {
 					std::allocator_traits<t_Allocator>::deallocate(
@@ -120,6 +127,11 @@ namespace base {
 
 			constexpr auto c_str() const noexcept -> const value_type * {
 				return data();
+			}
+
+			[[nodiscard]] constexpr auto view() const noexcept
+				-> std::basic_string_view<value_type, traits_type> {
+				return std::basic_string_view<value_type, traits_type>(data(), size());
 			}
 
 			constexpr auto operator[](this auto &&self, size_type pos) noexcept -> decltype(auto) {
@@ -299,12 +311,165 @@ namespace base {
 				return *this;
 			}
 
-			[[nodiscard]] constexpr auto operator==(const BasicString &other) const noexcept
-				-> bool {
-				return size() == other.size()
-					   && t_Traits::compare(data(), other.data(), size()) == 0;
+			/// Special value used to indicate "not found".
+		static constexpr size_type npos = static_cast<size_type>(-1);
+
+		/// Find first occurrence of @p str starting at @p pos.
+		[[nodiscard]] constexpr auto find(const BasicString &str, size_type pos = 0) const noexcept
+			-> size_type {
+			if (pos > size())
+				return npos;
+			auto s = size();
+			auto n = str.size();
+			if (n == 0)
+				return pos;
+			if (n > s - pos)
+				return npos;
+			for (size_type i = pos; i <= s - n; ++i) {
+				if (t_Traits::compare(data() + i, str.data(), n) == 0)
+					return i;
 			}
+			return npos;
+		}
+
+		/// Find first occurrence of character @p c starting at @p pos.
+		[[nodiscard]] constexpr auto find(value_type c, size_type pos = 0) const noexcept
+			-> size_type {
+			if (pos >= size())
+				return npos;
+			for (size_type i = pos; i < size(); ++i) {
+				if (data()[i] == c)
+					return i;
+			}
+			return npos;
+		}
+
+		/// Find first occurrence of C-string @p s starting at @p pos.
+		[[nodiscard]] constexpr auto find(const value_type *s, size_type pos = 0) const noexcept
+			-> size_type {
+			return find(BasicString(s), pos);
+		}
+
+		/// Extract substring [pos, pos + count).  If count == npos, goes to the end.
+		[[nodiscard]] constexpr auto substr(size_type pos = 0, size_type count = npos) const
+			-> BasicString {
+			if (pos > size())
+				throw std::out_of_range("BasicString::substr");
+			auto n = (std::min)(count, size() - pos);
+			return BasicString(data() + pos, n, _alloc);
+		}
+
+		/// Append @p other to the end of this string.
+		constexpr auto operator+=(const BasicString &other) -> BasicString & {
+			auto curr_size = size();
+			auto new_size = curr_size + other.size();
+			if (new_size > capacity()) {
+				auto new_cap = (std::max)(capacity() * GrowthFactor, new_size);
+				reserve(new_cap);
+			}
+			auto ptr = data();
+			t_Traits::copy(ptr + curr_size, other.data(), other.size());
+			ptr[new_size] = value_type(0);
+			if (_isLong)
+				_storage._long._size = new_size;
+			else
+				_storage._short._size = new_size;
+			return *this;
+		}
+
+		/// Append character @p c to the end of this string.
+		constexpr auto operator+=(value_type c) -> BasicString & {
+			push_back(c);
+			return *this;
+		}
+
+		/// Append C-string @p s to the end of this string.
+		constexpr auto operator+=(const value_type *s) -> BasicString & {
+			return *this += BasicString(s);
+		}
+
+		/// Check if the string starts with @p prefix.
+		[[nodiscard]] constexpr auto starts_with(const BasicString &prefix) const noexcept
+			-> bool {
+			if (prefix.size() > size())
+				return false;
+			return t_Traits::compare(data(), prefix.data(), prefix.size()) == 0;
+		}
+
+		/// Check if the string starts with character @p c.
+		[[nodiscard]] constexpr auto starts_with(value_type c) const noexcept -> bool {
+			return !empty() && front() == c;
+		}
+
+		/// Check if the string starts with C-string @p s.
+		[[nodiscard]] constexpr auto starts_with(const value_type *s) const noexcept -> bool {
+			return starts_with(BasicString(s));
+		}
+
+		/// Check if the string ends with @p suffix.
+		[[nodiscard]] constexpr auto ends_with(const BasicString &suffix) const noexcept -> bool {
+			if (suffix.size() > size())
+				return false;
+			return t_Traits::compare(data() + size() - suffix.size(), suffix.data(), suffix.size())
+				   == 0;
+		}
+
+		/// Check if the string ends with character @p c.
+		[[nodiscard]] constexpr auto ends_with(value_type c) const noexcept -> bool {
+			return !empty() && back() == c;
+		}
+
+		/// Check if the string ends with C-string @p s.
+		[[nodiscard]] constexpr auto ends_with(const value_type *s) const noexcept -> bool {
+			return ends_with(BasicString(s));
+		}
+
+		[[nodiscard]] constexpr auto operator==(const BasicString &other) const noexcept
+			-> bool {
+			return size() == other.size()
+				   && t_Traits::compare(data(), other.data(), size()) == 0;
+		}
+
+		[[nodiscard]] constexpr auto operator<(const BasicString &other) const noexcept
+			-> bool {
+			auto n = (std::min)(size(), other.size());
+			auto cmp = t_Traits::compare(data(), other.data(), n);
+			if (cmp != 0)
+				return cmp < 0;
+			return size() < other.size();
+		}
 	};
+
+	/// Concatenate two BasicStrings.
+	template <class t_Char, class t_Traits, class t_Alloc>
+	[[nodiscard]] constexpr auto
+	operator+(const BasicString<t_Char, t_Traits, t_Alloc> &a,
+			  const BasicString<t_Char, t_Traits, t_Alloc> &b)
+		-> BasicString<t_Char, t_Traits, t_Alloc> {
+		auto result = a;
+		result += b;
+		return result;
+	}
+
+	/// Concatenate a BasicString with a C-string.
+	template <class t_Char, class t_Traits, class t_Alloc>
+	[[nodiscard]] constexpr auto operator+(const BasicString<t_Char, t_Traits, t_Alloc> &a,
+										   const t_Char *b)
+		-> BasicString<t_Char, t_Traits, t_Alloc> {
+		auto result = a;
+		result += b;
+		return result;
+	}
+
+	/// Concatenate a C-string with a BasicString.
+	template <class t_Char, class t_Traits, class t_Alloc>
+	[[nodiscard]] constexpr auto operator+(const t_Char *a,
+										   const BasicString<t_Char, t_Traits, t_Alloc> &b)
+		-> BasicString<t_Char, t_Traits, t_Alloc> {
+		auto result = BasicString<t_Char, t_Traits, t_Alloc>(a);
+		result += b;
+		return result;
+	}
 
 	template <class t_Char, class t_Traits, class t_Alloc>
 	auto operator<<(std::basic_ostream<t_Char, std::char_traits<t_Char>> &os,

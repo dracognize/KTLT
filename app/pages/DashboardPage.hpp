@@ -1,12 +1,13 @@
 #pragma once
 
+#include "libs/base/string.hpp"
 #include "libs/base/types.hpp"
+#include "libs/base/vector.hpp"
 
 #include <chrono>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <string>
-#include <vector>
 
 class Client;
 
@@ -19,27 +20,20 @@ struct DashboardPage {
 		void doRefresh();
 
 		struct LogEntry {
-				std::string time;
-				std::string operation;
-				std::string amount;
+				base::String time;
+				base::String operation;
+				base::String amount;
 				u64 balance;
 		};
 
-		static void parseRawLogs(const std::string &raw,
-								 std::vector<LogEntry> &parsed,
-								 std::vector<u64> &history,
-								 usize maxEntries = 20);
+		static void parseTransactionHistory(const std::string &raw,
+											base::Vector<LogEntry> &parsed);
 
 		const std::string& balanceStr() const { return _balanceStr; }
 
 	private:
-<<<<<<< HEAD
-		void onLogout();
-		void onExit();
-=======
 
 		void doPing();
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 
 		Client &_client;
 		ftxui::ScreenInteractive &_screen;
@@ -47,11 +41,13 @@ struct DashboardPage {
 		std::string _balanceStr;
 		std::string _status;
 
-		std::vector<u64> _balanceHistory;
-		std::vector<LogEntry> _parsedLogs;
+		base::Vector<u64> _balanceHistory;
+		base::Vector<LogEntry> _parsedLogs;
 		std::string _logsStatus;
 
 		std::string _latencyStr = "?";
+		long long _latencyVal = -1;
+
 		std::chrono::steady_clock::time_point _pingSentAt;
 
 		int _spinnerFrame = 0;

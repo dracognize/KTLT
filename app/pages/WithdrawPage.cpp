@@ -1,4 +1,5 @@
 #include "app/pages/WithdrawPage.hpp"
+#include "app/Theme.hpp"
 #include "app/client/Client.hpp"
 #include "app/pages/DashboardPage.hpp"
 
@@ -50,109 +51,118 @@ void WithdrawPage::doWithdraw() {
 }
 
 ftxui::Component WithdrawPage::build() {
-    _amountInput = ftxui::Input(&_amountStr,
-                                "amount",
-                                ftxui::InputOption{
-                                    .multiline = false,
-                                    .on_enter = [this] { _showConfirm = true; },
-                                });
+    auto input_option = ftxui::InputOption::Default();
 
-    _withdrawBtn
-        = ftxui::Button("  Withdraw  ", [this] { _showConfirm = true; },
-                        ftxui::ButtonOption::Border());
-    _backBtn = ftxui::Button(
-        "  Back  ",
-        [this] {
-            _postAuthPage = 0;
-            _screen.RequestAnimationFrame();
-        },
-        ftxui::ButtonOption::Border());
+    _amountInput = ftxui::Input(&_amountStr, "amount", input_option);
+    _amountInput |= ftxui::CatchEvent([this](ftxui::Event e) {
+        if (e == ftxui::Event::Return) {
+            _showConfirm = true;
+            _screen.Post([this] { _confirmYes->TakeFocus(); });
+            return true;
+        }
+        if (e.is_character()) {
+            return !std::isdigit(e.character()[0]);
+        }
+        return false;
+    });
 
-    // ── Confirmation dialog ─────────────────────────────────────
-    auto confirmYes = ftxui::Button("  Confirm  ", [this] { doWithdraw(); _showConfirm = false; },
-                                    ftxui::ButtonOption::Border());
-    auto confirmNo  = ftxui::Button("  Cancel  ", [this] { _showConfirm = false; },
-                                    ftxui::ButtonOption::Border());
+    _withdrawBtn = ftxui::Button(" WITHDRAW ", [this] {
+              _showConfirm = true;
+              _screen.Post([this] { _confirmYes->TakeFocus(); });
+          }, theme::Button(theme::Red));
+    
+    _backBtn = ftxui::Button(" BACK ", [this] { _postAuthPage = 0; }, theme::Button(theme::Overlay2));
+
+    _confirmYes = ftxui::Button(" CONFIRM ", [this] { doWithdraw(); _showConfirm = false; }, theme::Button(theme::Red));
+    
+    auto confirmNo  = ftxui::Button(" CANCEL ", [this] { _showConfirm = false; }, theme::Button(theme::Overlay2));
 
     auto confirmContent = ftxui::Container::Vertical({
         ftxui::Renderer([] {
             return ftxui::vbox({
-                ftxui::text("Confirm Withdrawal") | ftxui::bold | ftxui::center,
-                ftxui::separator(),
-                ftxui::text("Are you sure you want to withdraw?") | ftxui::center,
-            }) | ftxui::border | ftxui::center;
+                ftxui::text(" CONFIRM WITHDRAWAL ") | ftxui::bold | ftxui::center | ftxui::color(theme::Red),
+                ftxui::separator() | ftxui::color(theme::Red),
+                ftxui::text("Are you sure you want to withdraw?") | ftxui::center | ftxui::color(theme::Text),
+            });
         }),
         ftxui::Container::Horizontal({
-            confirmYes,
+            _confirmYes,
             confirmNo,
-        }),
+        }) | ftxui::center,
     });
 
     auto confirmDialog = ftxui::Maybe(confirmContent, &_showConfirm);
 
     auto container = ftxui::Container::Vertical({
         _amountInput,
-        ftxui::Container::Horizontal({
-            _withdrawBtn,
-            _backBtn,
-        }),
+        _withdrawBtn,
+        _backBtn,
         confirmDialog,
     });
 
-    return ftxui::Renderer(container, [this] {
+    return ftxui::Renderer(container, [this, confirmDialog]() -> ftxui::Element {
         auto curBalance = _dashboard.balanceStr();
         if (curBalance.empty()) curBalance = "0";
 
-        // Status line
-        ftxui::Element statusEl;
-        if (_loading) {
-            ++_spinnerFrame;
-            statusEl = ftxui::text(" Processing withdrawal...") | ftxui::dim;
-        } else if (!_status.empty()) {
-            statusEl = ftxui::text(_status) | ftxui::center;
-        } else {
-            statusEl = ftxui::emptyElement();
-        }
+        auto statusEl = [this]() -> ftxui::Element {
+            if (_loading) {
+                ++_spinnerFrame;
+                return ftxui::hbox({
+                    ftxui::spinner(21, _spinnerFrame) | ftxui::color(theme::Red),
+                    ftxui::text(" Processing withdrawal..."),
+                }) | ftxui::center;
+            }
+            if (!_status.empty()) {
+                auto color = (_status.find("successful") != std::string::npos) ? theme::Green : theme::Red;
+                return ftxui::text(_status) | ftxui::color(color) | ftxui::center;
+            }
+            return ftxui::emptyElement();
+        }();
 
-        // Build layout
-        ftxui::Elements mainContent;
-        mainContent.push_back(ftxui::text("Withdraw") | ftxui::bold | ftxui::center);
-        mainContent.push_back(ftxui::separator());
-        mainContent.push_back(ftxui::text(""));
-        mainContent.push_back(
+        auto withdrawBox = ftxui::vbox({
+            ftxui::text("WITHDRAW FUNDS") | ftxui::bold | ftxui::center | ftxui::color(theme::Red),
+            ftxui::separator() | ftxui::color(theme::Red),
+            ftxui::text(""),
             ftxui::hbox({
-                ftxui::text(" Your Balance: ") | ftxui::bold,
-                ftxui::text("$ " + curBalance),
+                ftxui::text(" Your Balance ") | ftxui::color(theme::Subtext1),
                 ftxui::filler(),
-            }) | ftxui::border
-        );
-        mainContent.push_back(ftxui::text(""));
-        mainContent.push_back(
+                ftxui::text("$ " + curBalance) | ftxui::bold | ftxui::color(theme::Yellow),
+            }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
+            ftxui::text(""),
             ftxui::hbox({
-                ftxui::text(" Amount to withdraw: "),
+                ftxui::text(" AMOUNT ") | ftxui::color(theme::Subtext0) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
                 _amountInput->Render() | ftxui::flex,
-            }) | ftxui::border
-        );
-        mainContent.push_back(ftxui::text(""));
-        mainContent.push_back(ftxui::separator());
+            }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
+            ftxui::text(""),
+            ftxui::separator() | ftxui::color(theme::Surface2),
+            ftxui::hbox({
+                ftxui::filler(),
+                _withdrawBtn->Render(),
+                ftxui::text("  "),
+                _backBtn->Render(),
+                ftxui::filler(),
+            }),
+            statusEl,
+        }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 40)
+           | ftxui::center;
 
-        ftxui::Elements buttonRow;
-        buttonRow.push_back(ftxui::filler());
-        buttonRow.push_back(_withdrawBtn->Render());
-        buttonRow.push_back(ftxui::text("  "));
-        buttonRow.push_back(_backBtn->Render());
-        buttonRow.push_back(ftxui::filler());
-        mainContent.push_back(ftxui::hbox(std::move(buttonRow)));
+        auto mainEl = ftxui::vbox({
+            ftxui::filler(),
+            withdrawBox,
+            ftxui::filler(),
+        });
 
-        mainContent.push_back(statusEl);
-        mainContent.push_back(ftxui::text(""));
-        mainContent.push_back(ftxui::text("Enter positive numbers only") | ftxui::dim | ftxui::center);
-        mainContent.push_back(ftxui::filler());
-        mainContent.push_back(ftxui::text("[Enter] Withdraw  [Back] Return  [ESC] Quit") | ftxui::dim | ftxui::center);
-
-        return ftxui::vbox(std::move(mainContent))
-               | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 30)
-               | ftxui::center
-               | ftxui::border;
+        if (_showConfirm) {
+            return ftxui::dbox({
+                mainEl,
+                confirmDialog->Render() 
+                    | ftxui::clear_under 
+                    | ftxui::center 
+                    | ftxui::borderStyled(ftxui::DOUBLE) 
+                    | ftxui::color(theme::Red)
+                    | ftxui::bgcolor(theme::Base),
+            });
+        }
+        return mainEl;
     });
 }

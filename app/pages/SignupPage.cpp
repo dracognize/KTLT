@@ -1,4 +1,5 @@
 #include "app/pages/SignupPage.hpp"
+#include "app/Theme.hpp"
 #include "app/client/Client.hpp"
 #include "app/pages/DashboardPage.hpp"
 
@@ -10,17 +11,38 @@
 static int evaluateStrength(const std::string &pw) {
     auto len = pw.size();
     if (len == 0) return 0;
-    if (len < 6) return 0; // Weak
-    if (len < 12) return 1; // Medium
+    
+    int score = 0;
+    if (len >= 8) score++;
+    if (len >= 12) score++;
+    
+    bool hasUpper = false;
+    bool hasLower = false;
+    bool hasDigit = false;
+    bool hasSpecial = false;
+    
+    for (char c : pw) {
+        if (std::isupper(c)) hasUpper = true;
+        else if (std::islower(c)) hasLower = true;
+        else if (std::isdigit(c)) hasDigit = true;
+        else hasSpecial = true;
+    }
+    
+    if (hasUpper && hasLower) score++;
+    if (hasDigit) score++;
+    if (hasSpecial) score++;
+    
+    if (score < 2) return 0; // Weak
+    if (score < 4) return 1; // Medium
     return 2; // Strong
 }
 
 static const char* strengthLabel(int s) {
     switch (s) {
-        case 0: return "Weak";
-        case 1: return "Medium";
-        case 2: return "Strong";
-        default: return "?";
+        case 0: return " WEAK ";
+        case 1: return " MEDIUM ";
+        case 2: return " STRONG ";
+        default: return " ? ";
     }
 }
 
@@ -76,110 +98,120 @@ void SignupPage::onSuccess() {
 }
 
 ftxui::Component SignupPage::build() {
-    _userInput = ftxui::Input(&_username,
-                              "username",
-                              ftxui::InputOption{
-                                  .multiline = false,
-                                  .on_change = [this] {
-                                      if (_username.size() > 23)
-                                          _username.resize(23);
-                                  },
-                                  .on_enter = [this] { _passInput->TakeFocus(); },
-                              });
+    auto input_option = ftxui::InputOption::Default();
 
-    _passInput = ftxui::Input(&_password,
-                              "password",
-                              ftxui::InputOption{
-                                  .password = true,
-                                  .multiline = false,
-                                  .on_change = [this] {
-                                      if (_password.size() > 23)
-                                          _password.resize(23);
-                                      _cachedStrength = evaluateStrength(_password);
-                                  },
-                                  .on_enter = [this] { _confirmInput->TakeFocus(); },
-                              });
+    _userInput = ftxui::Input(&_username, "username", input_option);
+    _userInput |= ftxui::CatchEvent([this](ftxui::Event e) {
+        if (e == ftxui::Event::Return) {
+            _passInput->TakeFocus();
+            return true;
+        }
+        if (_username.size() > 23) _username.resize(23);
+        return false;
+    });
 
-    _confirmInput = ftxui::Input(&_confirmPassword,
-                                 "confirm password",
-                                 ftxui::InputOption{
-                                     .password = true,
-                                     .multiline = false,
-                                     .on_change = [this] {
-                                         if (_confirmPassword.size() > 23)
-                                             _confirmPassword.resize(23);
-                                     },
-                                     .on_enter = [this] { doCreateAccount(); },
-                                 });
+    auto pass_option = input_option;
+    pass_option.password = true;
+    _passInput = ftxui::Input(&_password, "password", pass_option);
+    _passInput |= ftxui::CatchEvent([this](ftxui::Event e) {
+        if (e == ftxui::Event::Return) {
+            _confirmInput->TakeFocus();
+            return true;
+        }
+        if (_password.size() > 23) _password.resize(23);
+        _cachedStrength = evaluateStrength(_password);
+        return false;
+    });
 
-    _createBtn = ftxui::Button("  Create Account  ", [this] { doCreateAccount(); },
-                               ftxui::ButtonOption::Border());
+    _confirmInput = ftxui::Input(&_confirmPassword, "confirm password", pass_option);
+    _confirmInput |= ftxui::CatchEvent([this](ftxui::Event e) {
+        if (e == ftxui::Event::Return) {
+            doCreateAccount();
+            return true;
+        }
+        if (_confirmPassword.size() > 23) _confirmPassword.resize(23);
+        return false;
+    });
+
+    _createBtn = ftxui::Button(" CREATE ACCOUNT ", [this] { doCreateAccount(); }, theme::Button(theme::Mauve));
 
     auto container = ftxui::Container::Vertical({
         _userInput,
         _passInput,
         _confirmInput,
-        ftxui::Container::Horizontal({
-            _createBtn,
-        }),
+        _createBtn,
     });
 
-    return ftxui::Renderer(container, [this] {
-        // Password strength indicator (only when password is non-empty)
+    return ftxui::Renderer(container, [this]() -> ftxui::Element {
+        auto strengthColor = theme::Red;
+        auto strengthBg = theme::Surface1;
+        if (_cachedStrength == 1) { strengthColor = theme::Base; strengthBg = theme::Yellow; }
+        if (_cachedStrength == 2) { strengthColor = theme::Base; strengthBg = theme::Green; }
+        if (_cachedStrength == 0 && !_password.empty()) { strengthColor = theme::Base; strengthBg = theme::Red; }
+
         auto pwStrengthEl = _password.empty()
                                 ? ftxui::emptyElement()
                                 : ftxui::hbox({
-                                      ftxui::text(" Password strength: ") | ftxui::dim,
-                                      ftxui::text(strengthLabel(_cachedStrength)) | ftxui::bold,
+                                      ftxui::text(" Strength: ") | ftxui::color(theme::Subtext0),
+                                      ftxui::text(strengthLabel(_cachedStrength)) | ftxui::bold | ftxui::color(strengthColor) | ftxui::bgcolor(strengthBg),
                                       ftxui::filler(),
                                   });
 
-        // Confirmation match indicator
         auto matchEl = ftxui::emptyElement();
         if (!_confirmPassword.empty()) {
             if (_password == _confirmPassword) {
-                matchEl = ftxui::text(" Passwords match") | ftxui::bold;
+                matchEl = ftxui::text(" Passwords match ") | ftxui::bold | ftxui::color(theme::Green);
             } else {
-                matchEl = ftxui::text(" Passwords do not match") | ftxui::bold;
+                matchEl = ftxui::text(" Passwords do not match ") | ftxui::bold | ftxui::color(theme::Red);
             }
         }
 
         auto statusEl = [this]() -> ftxui::Element {
             if (_loading) {
                 ++_spinnerFrame;
-                return ftxui::text(" Creating account...") | ftxui::dim;
+                return ftxui::hbox({
+                    ftxui::spinner(21, _spinnerFrame) | ftxui::color(theme::Mauve),
+                    ftxui::text(" Creating account..."),
+                }) | ftxui::center;
             }
             if (!_status.empty()) {
-                return ftxui::text(_status) | ftxui::center;
+                return ftxui::text(_status) | ftxui::color(theme::Red) | ftxui::center;
             }
             return ftxui::emptyElement();
         }();
 
+        auto signupBox = ftxui::vbox({
+            ftxui::text(" SIGN UP ") | ftxui::bold | ftxui::center | ftxui::color(theme::Mauve),
+            ftxui::separator() | ftxui::color(theme::Mauve),
+            ftxui::text(""),
+            ftxui::hbox({
+                ftxui::text(" USERNAME ") | ftxui::color(theme::Subtext0) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
+                _userInput->Render() | ftxui::flex,
+            }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
+            ftxui::hbox({
+                ftxui::text(" PASSWORD ") | ftxui::color(theme::Subtext0) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
+                _passInput->Render() | ftxui::flex,
+            }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
+            pwStrengthEl,
+            ftxui::hbox({
+                ftxui::text(" CONFIRM  ") | ftxui::color(theme::Subtext0) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
+                _confirmInput->Render() | ftxui::flex,
+            }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
+            matchEl | ftxui::center,
+            ftxui::text(""),
+            _createBtn->Render() | ftxui::center,
+            ftxui::text(""),
+            statusEl,
+        }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 40)
+           | ftxui::center
+           | ftxui::borderStyled(ftxui::ROUNDED)
+           | ftxui::color(theme::Surface0);
+
         return ftxui::vbox({
-                   ftxui::text("Create Account") | ftxui::bold | ftxui::center,
-                   ftxui::separator(),
-                   ftxui::hbox({
-                       ftxui::text(" Username: "),
-                       _userInput->Render() | ftxui::flex,
-                   }) | ftxui::border,
-                   ftxui::hbox({
-                       ftxui::text(" Password: "),
-                       _passInput->Render() | ftxui::flex,
-                   }) | ftxui::border,
-                   pwStrengthEl,
-                   ftxui::hbox({
-                       ftxui::text(" Confirm: "),
-                       _confirmInput->Render() | ftxui::flex,
-                   }) | ftxui::border,
-                   matchEl | ftxui::center,
-                   ftxui::separator(),
-                   _createBtn->Render() | ftxui::center,
-                   statusEl,
-                   ftxui::text(""),
-                   ftxui::text("Already have an account? Go to Login") | ftxui::dim | ftxui::center,
-               })
-               | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 30)
-               | ftxui::center
-               | ftxui::border;
+            ftxui::filler(),
+            signupBox,
+            ftxui::filler(),
+            ftxui::text("Already have an account? Go back to Login") | ftxui::dim | ftxui::center,
+        });
     });
 }

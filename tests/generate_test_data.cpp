@@ -5,10 +5,6 @@
 #include <bit>
 #include <chrono>
 #include <cstring>
-<<<<<<< HEAD
-#include <fstream>
-#include <iostream>
-=======
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -22,7 +18,6 @@ inline constexpr usize PasswordSaltLen = 16;
 inline constexpr usize PasswordHashLen = 32;
 inline constexpr usize PasswordStoreLen = PasswordSaltLen + PasswordHashLen; // 48
 inline constexpr usize LogFileMaxLen = 31;
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 
 #pragma pack(push, 1)
 struct Record {
@@ -36,6 +31,18 @@ struct Record {
 
 static_assert(sizeof(Record) == 24 + 48 + 8 + 32 + 1, "Record size mismatch");
 
+// Transaction record matching server/Database.hpp
+#pragma pack(push, 1)
+struct TxnRecord {
+		char username[24];
+		char counterparty[24];
+		u64 amount;
+		u64 balanceAfter;
+		u64 timestamp;
+		u8 type;
+};
+#pragma pack(pop)
+
 namespace {
 
 	[[nodiscard]] auto toNetwork(u64 val) noexcept -> u64 {
@@ -45,18 +52,6 @@ namespace {
 		return val;
 	}
 
-<<<<<<< HEAD
-void writeRecord(std::ofstream &f, const char *user, const char *pass, u64 balance, bool locked) {
-	Record r{};
-	std::strncpy(r.username, user, sizeof(r.username) - 1);
-	std::strncpy(r.password, pass, sizeof(r.password) - 1);
-	r.balance = toNetwork(balance);
-	std::strncpy(r.logFile, "", sizeof(r.logFile) - 1);
-	r.isLocked = locked ? 1 : 0;
-	f.write(reinterpret_cast<const char *>(&r), sizeof(r));
-}
-
-=======
 	void writeRecord(std::ofstream &f,
 					 const std::string &user,
 					 const std::string &pass,
@@ -97,35 +92,48 @@ void writeRecord(std::ofstream &f, const char *user, const char *pass, u64 balan
 		}
 	}
 
+	// Transaction types matching server/Database.hpp TransactionType
+	enum TxnType : u8 {
+		deposit = 0,
+		withdraw = 1,
+		transfer_out = 2,
+		transfer_in = 3,
+	};
+
 	struct Tx {
 			std::string message;
 			u64 balance;
+			u8 type = 0;
+			u64 amount = 0;
+			std::string counterparty;
 	};
 
 	void appendDeposit(std::vector<Tx> &txs, u64 amount, u64 &balance) {
 		balance += amount;
 		txs.push_back(
-			{"Deposit +" + std::to_string(amount) + " " + std::to_string(balance), balance});
+			{"Deposit +" + std::to_string(amount) + " " + std::to_string(balance), balance,
+			 deposit, amount, ""});
 	}
 
 	void appendWithdrawal(std::vector<Tx> &txs, u64 amount, u64 &balance) {
 		balance -= amount;
 		txs.push_back(
-			{"Withdrawal -" + std::to_string(amount) + " " + std::to_string(balance), balance});
+			{"Withdrawal -" + std::to_string(amount) + " " + std::to_string(balance), balance,
+			 withdraw, amount, ""});
 	}
 
 	void appendTransferOut(std::vector<Tx> &txs, u64 amount, const std::string &to, u64 &balance) {
 		balance -= amount;
 		txs.push_back(
 			{"Transfer to " + to + " -" + std::to_string(amount) + " " + std::to_string(balance),
-			 balance});
+			 balance, transfer_out, amount, to});
 	}
 
 	void appendTransferIn(std::vector<Tx> &txs, u64 amount, const std::string &from, u64 &balance) {
 		balance += amount;
 		txs.push_back({"Transfer from " + from + " +" + std::to_string(amount) + " "
 						   + std::to_string(balance),
-					   balance});
+					   balance, transfer_in, amount, from});
 	}
 
 	auto formatLog(const std::string &msg, int seq) -> std::string {
@@ -136,11 +144,20 @@ void writeRecord(std::ofstream &f, const char *user, const char *pass, u64 balan
 		return std::format("[2026-06-17 {:02}:{:02}:{:02}] {}", h, m, s, msg);
 	}
 
-	std::vector<std::string> generateAdminLog(u64 &finalBalance) {
-		std::vector<Tx> txs;
+	// Base timestamp: 2026-06-17 00:00:00 UTC (epoch seconds)
+	inline constexpr u64 BaseEpoch = 1781654400ULL;
+
+	// Compute epoch seconds from sequence number (matching formatLog's time)
+	[[nodiscard]] auto txnTimestamp(int seq) -> u64 {
+		auto total = 8 * 3600 + 30 * 60 + seq * 12; // seconds since midnight
+		return BaseEpoch + static_cast<u64>(total);
+	}
+
+	void generateAdminTxs(std::vector<Tx> &txs, u64 &finalBalance) {
 		u64 bal = 999'999;
 
-		txs.push_back({"Account created with balance " + std::to_string(bal), bal});
+		txs.push_back({"Account created with balance " + std::to_string(bal), bal,
+					   deposit, bal, ""});
 
 		appendDeposit(txs, 500'000, bal);
 		appendDeposit(txs, 200'000, bal);
@@ -173,18 +190,13 @@ void writeRecord(std::ofstream &f, const char *user, const char *pass, u64 balan
 		appendTransferOut(txs, 25'000, "user1", bal);
 
 		finalBalance = bal;
-		std::vector<std::string> result;
-		for (std::size_t i = 0; i < txs.size(); ++i) {
-			result.push_back(formatLog(txs[i].message, static_cast<int>(i)));
-		}
-		return result;
 	}
 
-	std::vector<std::string> generateUser1Log(u64 &finalBalance) {
-		std::vector<Tx> txs;
+	void generateUser1Txs(std::vector<Tx> &txs, u64 &finalBalance) {
 		u64 bal = 50'000;
 
-		txs.push_back({"Account created with balance " + std::to_string(bal), bal});
+		txs.push_back({"Account created with balance " + std::to_string(bal), bal,
+					   deposit, bal, ""});
 
 		appendDeposit(txs, 100'000, bal);
 		appendWithdrawal(txs, 10'000, bal);
@@ -217,14 +229,34 @@ void writeRecord(std::ofstream &f, const char *user, const char *pass, u64 balan
 		appendDeposit(txs, 70'000, bal);
 
 		finalBalance = bal;
-		std::vector<std::string> result;
-		for (std::size_t i = 0; i < txs.size(); ++i) {
-			result.push_back(formatLog(txs[i].message, static_cast<int>(i)));
-		}
-		return result;
 	}
 
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
+	void writeTxnFile(const std::string &user, const std::vector<Tx> &txs) {
+		auto path = std::string("data/") + user + ".txn";
+		auto f = std::ofstream(path, std::ios::binary | std::ios::trunc);
+		if (!f) {
+			std::cerr << "  failed to write " << path << "\n";
+			return;
+		}
+		for (std::size_t i = 0; i < txs.size(); ++i) {
+			const auto &tx = txs[i];
+			TxnRecord rec{};
+			std::memset(&rec, 0, sizeof(rec));
+			std::memcpy(rec.username, user.c_str(),
+						(std::min)(user.size(), sizeof(rec.username) - 1));
+			if (!tx.counterparty.empty()) {
+				std::memcpy(rec.counterparty, tx.counterparty.c_str(),
+							(std::min)(tx.counterparty.size(), sizeof(rec.counterparty) - 1));
+			}
+			rec.amount = toNetwork(tx.amount);
+			rec.balanceAfter = toNetwork(tx.balance);
+			rec.timestamp = toNetwork(txnTimestamp(static_cast<int>(i)));
+			rec.type = tx.type;
+			f.write(reinterpret_cast<const char *>(&rec), sizeof(rec));
+		}
+		std::cout << "  wrote " << txs.size() << " txn records to " << path << "\n";
+	}
+
 } // namespace
 
 int main() {
@@ -234,34 +266,45 @@ int main() {
 		return 1;
 	}
 
-<<<<<<< HEAD
-	writeRecord(f, "admin", "admin123", 999'999, false);
-	writeRecord(f, "user1", "password1", 50'000, false);
-	writeRecord(f, "locked", "lockedpw", 1'000, true);
-
-	std::cout << "wrote 3 test accounts to data.db\n";
-=======
 	u64 adminBalance = 0;
 	u64 user1Balance = 0;
-	auto adminLog = generateAdminLog(adminBalance);
-	auto user1Log = generateUser1Log(user1Balance);
+
+	std::vector<Tx> adminTxs;
+	std::vector<Tx> user1Txs;
+	generateAdminTxs(adminTxs, adminBalance);
+	generateUser1Txs(user1Txs, user1Balance);
+
+	// Build log strings from Txs
+	auto buildLog = [](const std::vector<Tx> &txs) {
+		std::vector<std::string> result;
+		for (std::size_t i = 0; i < txs.size(); ++i) {
+			result.push_back(formatLog(txs[i].message, static_cast<int>(i)));
+		}
+		return result;
+	};
+	auto adminLog = buildLog(adminTxs);
+	auto user1Log = buildLog(user1Txs);
 
 	std::cout << "Generating test data...\n";
+
+	// Write records
 	writeRecord(f, "admin", "admin123", adminBalance, false);
 	writeLog("admin", adminLog);
+	writeTxnFile("admin", adminTxs);
 
 	writeRecord(f, "user1", "password1", user1Balance, false);
 	writeLog("user1", user1Log);
+	writeTxnFile("user1", user1Txs);
 
 	writeRecord(f, "locked", "lockedpw", 1'000, true);
 	writeLog("locked", {"[2026-06-17 08:30:00] Account created with balance 1000"});
+	// locked account has no .txn file (no transactions after creation)
 
 	std::cout << "wrote 3 test accounts to data.db\n";
 	std::cout << "  admin:   balance " << adminBalance << " (" << (adminLog.size())
-			  << " log entries)\n";
+			  << " log entries, " << adminTxs.size() << " txn records)\n";
 	std::cout << "  user1:   balance " << user1Balance << " (" << (user1Log.size())
-			  << " log entries)\n";
+			  << " log entries, " << user1Txs.size() << " txn records)\n";
 	std::cout << "  locked:  balance 1,000 (account locked)\n";
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 	return 0;
 }

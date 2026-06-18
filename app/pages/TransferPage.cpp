@@ -1,114 +1,12 @@
-<<<<<<< HEAD
-#include "app/pages/AccountSettingsPage.hpp"
-#include "app/client/Client.hpp"
-=======
 #include "app/pages/TransferPage.hpp"
+#include "app/Theme.hpp"
 #include "app/client/Client.hpp"
 #include "app/pages/DashboardPage.hpp"
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 
 #include <ftxui/component/component_options.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 
-<<<<<<< HEAD
-AccountSettingsPage::AccountSettingsPage(Client &client, ftxui::ScreenInteractive &screen,
-										  const std::string &username, int &page)
-	: _client(client), _screen(screen), _username(username), _page(page) {
-}
-
-void AccountSettingsPage::doChangePassword() {
-	if (_newPassword.empty()) {
-		_status = "Please enter a new password";
-		return;
-	}
-	if (_newPassword != _confirmPassword) {
-		_status = "Passwords do not match";
-		return;
-	}
-
-	_loading = true;
-	_status = "";
-	_client.changePassword(_username, _newPassword, [this](bool ok) {
-		_screen.Post([this, ok] {
-			_loading = false;
-			_status = ok ? "Password changed successfully" : "Failed to change password";
-			if (ok) {
-				_newPassword.clear();
-				_confirmPassword.clear();
-			}
-			_screen.RequestAnimationFrame();
-		});
-	});
-}
-
-void AccountSettingsPage::doToggleLock() {
-	_loading = true;
-	_status = "";
-	_client.toggleAccount(_username, [this](bool ok) {
-		_screen.Post([this, ok] {
-			_loading = false;
-			_status = ok ? "Account lock status toggled" : "Failed to toggle account";
-			_screen.RequestAnimationFrame();
-		});
-	});
-}
-
-void AccountSettingsPage::reset() {
-	_newPassword.clear();
-	_confirmPassword.clear();
-	_status.clear();
-	_loading = false;
-}
-
-ftxui::Component AccountSettingsPage::build() {
-	auto newPassOpt = ftxui::InputOption{};
-	newPassOpt.password = true;
-	newPassOpt.multiline = false;
-
-	auto confirmOpt = ftxui::InputOption{};
-	confirmOpt.password = true;
-	confirmOpt.multiline = false;
-	confirmOpt.on_enter = [this] { doChangePassword(); };
-
-	auto newPassInput = ftxui::Input(&_newPassword, "new password", newPassOpt);
-	auto confirmInput = ftxui::Input(&_confirmPassword, "confirm new password", confirmOpt);
-	auto changePassBtn = ftxui::Button("Change Password", [this] { doChangePassword(); });
-	auto toggleLockBtn = ftxui::Button("Lock/Unlock My Account", [this] { doToggleLock(); });
-	auto backBtn = ftxui::Button("Back", [this] { _page = 1; });
-
-	auto container = ftxui::Container::Vertical({
-		newPassInput,
-		confirmInput,
-		changePassBtn,
-		toggleLockBtn,
-		backBtn,
-	});
-
-	return ftxui::Renderer(container, [this, newPassInput, confirmInput, changePassBtn, toggleLockBtn, backBtn] {
-		return ftxui::vbox({
-				   ftxui::text("Account Settings") | ftxui::bold | ftxui::center,
-				   ftxui::text(" User: " + _username),
-				   ftxui::separator(),
-				   ftxui::hbox({
-					   ftxui::text(" New password: "),
-					   newPassInput->Render() | ftxui::flex,
-				   }),
-				   ftxui::hbox({
-					   ftxui::text(" Confirm:      "),
-					   confirmInput->Render() | ftxui::flex,
-				   }),
-				   changePassBtn->Render() | ftxui::center,
-				   ftxui::separator(),
-				   toggleLockBtn->Render() | ftxui::center,
-				   ftxui::separator(),
-				   backBtn->Render() | ftxui::center,
-				   ftxui::text(_status) | ftxui::center,
-			   })
-			   | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 32);
-	});
-}
-=======
 TransferPage::TransferPage(Client &client,
                            ftxui::ScreenInteractive &screen,
                            const std::string &username,
@@ -157,34 +55,144 @@ void TransferPage::doTransfer() {
     });
 }
 
-ftxui::Component TransferPage::build() {
-    _recipientInput = ftxui::Input(&_recipient,
-                                   "recipient username",
-                                   ftxui::InputOption{
-                                       .multiline = false,
-                                       .on_enter = [this] { _amountInput->TakeFocus(); },
-                                   });
+// ── User directory / autocomplete ────────────────────────────────────
 
-    _amountInput = ftxui::Input(&_amountStr,
-                                "amount",
-                                ftxui::InputOption{
-                                    .multiline = false,
-                                    .on_enter = [this] { doTransfer(); },
-                                });
+void TransferPage::onRecipientChanged() {
+    if (!_cacheLoaded && !_cacheLoading) {
+        fetchUserDirectory();
+    } else if (_cacheLoaded) {
+        filterSuggestions();
+    }
+}
 
-    _transferBtn
-        = ftxui::Button("  Transfer  ", [this] { doTransfer(); },
-                        ftxui::ButtonOption::Border());
-    _backBtn = ftxui::Button(
-        "  Back  ",
-        [this] {
-            _postAuthPage = 0;
+void TransferPage::fetchUserDirectory() {
+    if (_cacheLoading)
+        return;
+    _cacheLoading = true;
+    _client.searchUsers("", [this](std::optional<std::string> resp) {
+        _screen.Post([this, resp = std::move(resp)] {
+            _cacheLoading = false;
+            _cacheLoaded = true;
+            _userCache.clear();
+            if (resp && !resp->empty()) {
+                auto sv = std::string_view(*resp);
+                std::string_view::size_type pos = 0;
+                while (pos < sv.size()) {
+                    auto pipe = sv.find('|', pos);
+                    if (pipe == std::string_view::npos) {
+                        _userCache.insert(base::String(sv.substr(pos)));
+                        break;
+                    }
+                    _userCache.insert(base::String(sv.substr(pos, pipe - pos)));
+                    pos = pipe + 1;
+                }
+            }
+            filterSuggestions();
             _screen.RequestAnimationFrame();
-        },
-        ftxui::ButtonOption::Border());
+        });
+    });
+}
+
+void TransferPage::filterSuggestions() {
+    _suggestions.clear();
+    _suggestionStrings.clear();
+
+    if (_recipient.empty()) {
+        _showSuggestions = false;
+        return;
+    }
+
+    auto prefix = base::String(std::string_view(_recipient));
+    auto myName = base::String(std::string_view(_username));
+
+    for (const auto &entry : _userCache) {
+        const auto &name = entry.first;
+        if (name == myName)
+            continue;
+        if (name.starts_with(prefix)) {
+            _suggestions.push_back(name);
+        }
+    }
+
+    base::sort(_suggestions.begin(), _suggestions.end(),
+               [](const base::String &a, const base::String &b) { return a < b; });
+
+    _suggestionStrings.reserve(_suggestions.size());
+    for (const auto &s : _suggestions) {
+        _suggestionStrings.push_back(std::string(s.view()));
+    }
+
+    _showSuggestions = !_suggestions.empty();
+    _selectedSuggestion = 0;
+}
+
+// ── Build ────────────────────────────────────────────────────────────
+
+ftxui::Component TransferPage::build() {
+    auto menu_option = ftxui::MenuOption::Vertical();
+    menu_option.entries_option.transform = [](const ftxui::EntryState& s) {
+        auto element = ftxui::text(" " + s.label) | ftxui::flex;
+        if (s.focused) {
+            return element | ftxui::bold | ftxui::color(theme::Base) | ftxui::bgcolor(theme::Sapphire);
+        }
+        return element | ftxui::color(theme::Text);
+    };
+
+    _suggestionsMenu = ftxui::Menu(&_suggestionStrings, &_selectedSuggestion, menu_option);
+    _suggestionsMenu |= ftxui::CatchEvent([this](ftxui::Event e) {
+        if (e == ftxui::Event::Return && _showSuggestions && !_suggestionStrings.empty()) {
+            _recipient = _suggestionStrings[static_cast<std::size_t>(_selectedSuggestion)];
+            _showSuggestions = false;
+            _amountInput->TakeFocus();
+            _screen.RequestAnimationFrame();
+            return true;
+        }
+        if (e == ftxui::Event::ArrowUp && _selectedSuggestion == 0) {
+            _recipientInput->TakeFocus();
+            return true;
+        }
+        return false;
+    });
+
+    auto input_option = ftxui::InputOption::Default();
+
+    _recipientInput = ftxui::Input(&_recipient, "recipient username", input_option);
+    _recipientInput |= ftxui::CatchEvent([this](ftxui::Event e) {
+        if (e == ftxui::Event::Return) {
+            if (_showSuggestions && !_suggestionStrings.empty()) {
+                _recipient = _suggestionStrings[static_cast<std::size_t>(_selectedSuggestion)];
+                _showSuggestions = false;
+            }
+            _amountInput->TakeFocus();
+            return true;
+        }
+        if (e == ftxui::Event::ArrowDown && _showSuggestions && !_suggestionStrings.empty()) {
+            _suggestionsMenu->TakeFocus();
+            return true;
+        }
+        onRecipientChanged();
+        return false;
+    });
+
+    _amountInput = ftxui::Input(&_amountStr, "amount", input_option);
+    _amountInput |= ftxui::CatchEvent([this](ftxui::Event e) {
+        if (e == ftxui::Event::Return) {
+            doTransfer();
+            return true;
+        }
+        if (e.is_character()) {
+            return !std::isdigit(e.character()[0]);
+        }
+        return false;
+    });
+
+    _transferBtn = ftxui::Button(" TRANSFER ", [this] { doTransfer(); }, theme::Button(theme::Sapphire));
+    
+    _backBtn = ftxui::Button(" BACK ", [this] { _postAuthPage = 0; }, theme::Button(theme::Overlay2));
 
     auto container = ftxui::Container::Vertical({
         _recipientInput,
+        ftxui::Maybe(_suggestionsMenu, &_showSuggestions),
         _amountInput,
         ftxui::Container::Horizontal({
             _transferBtn,
@@ -192,42 +200,54 @@ ftxui::Component TransferPage::build() {
         }),
     });
 
-    return ftxui::Renderer(container, [this] {
+    return ftxui::Renderer(container, [this]() -> ftxui::Element {
         auto curBalance = _dashboard.balanceStr();
         if (curBalance.empty()) curBalance = "0";
 
         auto statusEl = [this]() -> ftxui::Element {
             if (_loading) {
                 ++_spinnerFrame;
-                return ftxui::text(" Processing transfer...") | ftxui::dim;
+                return ftxui::hbox({
+                    ftxui::spinner(21, _spinnerFrame) | ftxui::color(theme::Sapphire),
+                    ftxui::text(" Processing transfer..."),
+                }) | ftxui::center;
             }
             if (!_status.empty()) {
-                return ftxui::text(_status) | ftxui::center;
+                auto color = (_status.find("successful") != std::string::npos) ? theme::Green : theme::Red;
+                return ftxui::text(_status) | ftxui::color(color) | ftxui::center;
             }
             return ftxui::emptyElement();
         }();
 
+        auto suggestionEl = _showSuggestions
+            ? ftxui::vbox({
+                  _suggestionsMenu->Render() | ftxui::vscroll_indicator | ftxui::frame
+                      | ftxui::size(ftxui::HEIGHT, ftxui::LESS_THAN, 8)
+                      | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
+              })
+            : ftxui::emptyElement();
+
         return ftxui::vbox({
-                   ftxui::text("Transfer") | ftxui::bold | ftxui::center,
-                   ftxui::separator(),
+                   ftxui::text("TRANSFER FUNDS") | ftxui::bold | ftxui::center | ftxui::color(theme::Sapphire),
+                   ftxui::separator() | ftxui::color(theme::Sapphire),
                    ftxui::text(""),
                    ftxui::hbox({
-                       ftxui::text(" Your Balance: ") | ftxui::bold,
-                       ftxui::text("$ " + curBalance),
+                       ftxui::text(" Your Balance ") | ftxui::color(theme::Subtext1),
                        ftxui::filler(),
-                   }) | ftxui::border,
+                       ftxui::text("$ " + curBalance) | ftxui::bold | ftxui::color(theme::Yellow),
+                   }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
                    ftxui::text(""),
                    ftxui::hbox({
-                       ftxui::text(" Recipient: "),
+                       ftxui::text(" RECIPIENT ") | ftxui::color(theme::Subtext0) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
                        _recipientInput->Render() | ftxui::flex,
-                   }) | ftxui::border,
-                   ftxui::text(""),
+                   }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
+                   suggestionEl,
                    ftxui::hbox({
-                       ftxui::text(" Amount: "),
+                       ftxui::text(" AMOUNT ") | ftxui::color(theme::Subtext0) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
                        _amountInput->Render() | ftxui::flex,
-                   }) | ftxui::border,
+                   }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1),
                    ftxui::text(""),
-                   ftxui::separator(),
+                   ftxui::separator() | ftxui::color(theme::Surface2),
                    ftxui::hbox({
                        ftxui::filler(),
                        _transferBtn->Render(),
@@ -236,12 +256,9 @@ ftxui::Component TransferPage::build() {
                        ftxui::filler(),
                    }),
                    statusEl,
-                   ftxui::text(""),
-                   ftxui::text("Cannot transfer to yourself") | ftxui::dim | ftxui::center,
+                   ftxui::filler(),
                })
-               | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 30)
-               | ftxui::center
-               | ftxui::border;
+               | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 40)
+               | ftxui::center;
     });
 }
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)

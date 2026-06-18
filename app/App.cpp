@@ -1,19 +1,14 @@
 #include "app/App.hpp"
+#include "app/Theme.hpp"
 #include "app/client/Client.hpp"
-#include "app/pages/AccountSettingsPage.hpp"
 #include "app/pages/DashboardPage.hpp"
 #include "app/pages/DepositPage.hpp"
 #include "app/pages/HistoryPage.hpp"
 #include "app/pages/LoginPage.hpp"
-<<<<<<< HEAD
-#include "app/pages/RegisterPage.hpp"
-#include "app/pages/TransferPage.hpp"
-=======
 #include "app/pages/SettingPage.hpp"
 #include "app/pages/SignupPage.hpp"
 #include "app/pages/TransferPage.hpp"
 #include "app/pages/WithdrawPage.hpp"
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
@@ -22,42 +17,10 @@
 #include <string>
 #include <thread>
 
-<<<<<<< HEAD
-// page numbering convention:
-// 0 = Login, 1 = Dashboard, 2 = Register, 3 = Account Settings, 4 = Transfer
-=======
-// ── Non-focusable wrapper ─────────────────────────────────────────────
-// Wraps a component so it renders and processes mouse events,
-// but does NOT participate in Tab-key focus cycling.
-class NonFocusable final : public ftxui::ComponentBase {
-	public:
-		explicit NonFocusable(ftxui::Component child) {
-			Add(std::move(child));
-		}
-
-		bool Focusable() const override {
-			return false;
-		}
-
-		bool OnEvent(ftxui::Event event) override {
-			// Forward all events (keyboard + mouse) to the wrapped child.
-			// The Menu inside still processes mouse clicks and arrow keys.
-			if (ChildCount() > 0) {
-				return ChildAt(0)->OnEvent(std::move(event));
-			}
-			return false;
-		}
-};
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
-
 void App::run() {
 	Client client("127.0.0.1", 8080);
 
-<<<<<<< HEAD
-	auto screen = ftxui::ScreenInteractive::TerminalOutput();
-=======
 	auto screen = ftxui::ScreenInteractive::Fullscreen();
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 	std::thread clientThread([&] { client.run(); });
 
 	client.connect([&](bool ok) {
@@ -66,15 +29,6 @@ void App::run() {
 	});
 
 	std::string appUsername;
-<<<<<<< HEAD
-	int page = 0;
-
-	LoginPage loginPage(client, screen, appUsername, page);
-	DashboardPage dashboard(client, screen, appUsername, page, loginPage);
-	RegisterPage registerPage(client, screen, page);
-	AccountSettingsPage settingsPage(client, screen, appUsername, page);
-	TransferPage transferPage(client, screen, appUsername, page);
-=======
 	int section = 0;
 	int preAuthPage = 0;
 	int postAuthPage = 0;
@@ -97,22 +51,9 @@ void App::run() {
 			section = 0;
 		},
 		dashboard);
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 
-	loginPage.onEnterDashboard = [&] { dashboard.doRefresh(); };
+	loginPage.setDashboard(dashboard);
 
-<<<<<<< HEAD
-	auto loginComp = loginPage.build();
-	auto dashComp = dashboard.build();
-	auto registerComp = registerPage.build();
-	auto settingsComp = settingsPage.build();
-	auto transferComp = transferPage.build();
-
-	auto container = ftxui::Container::Tab(
-		{loginComp, dashComp, registerComp, settingsComp, transferComp}, &page);
-	
-	screen.Loop(container);
-=======
 	client.onDisconnect([&] {
 		screen.Post([&] {
 			loginPage.reset();
@@ -136,12 +77,15 @@ void App::run() {
 	auto preAuthContent = ftxui::Container::Tab({loginComp, signupComp}, &preAuthPage);
 
 	std::vector<std::string> preAuthEntries = {"Login", "Sign Up"};
+	auto preAuthMenuOption = ftxui::MenuOption::HorizontalAnimated();
+
 	auto preAuthMenu
-		= ftxui::Menu(preAuthEntries, &preAuthPage, ftxui::MenuOption::HorizontalAnimated());
+		= ftxui::Menu(preAuthEntries, &preAuthPage, preAuthMenuOption);
 
 	auto preAuthContainer = ftxui::Container::Vertical({
 		ftxui::Renderer([] {
 			return ftxui::text("KTLT Banking Terminal") | ftxui::bold | ftxui::center
+				   | ftxui::color(theme::Mauve)
 				   | ftxui::size(ftxui::WIDTH, ftxui::LESS_THAN, 52) | ftxui::center;
 		}),
 		preAuthMenu,
@@ -158,17 +102,26 @@ void App::run() {
 	std::vector<std::string> postAuthEntries
 		= {"Dashboard", "History", "Deposit", "Withdraw", "Transfer", "Settings"};
 
-	// Centralised page-change handler — called by both Menu::on_change
-	// AND keyboard shortcuts, because CatchEvent intercepts keyboard
-	// events before they reach the Menu component.
 	auto onPostAuthPageChanged = [&] {
-		if (postAuthPage == 1) {
+		if (postAuthPage == 0) {
+			dashboard.doRefresh();
+		} else if (postAuthPage == 1) {
 			historyPage.doRefresh();
 		}
 	};
 
 	auto postAuthMenuOption = ftxui::MenuOption::HorizontalAnimated();
-	postAuthMenuOption.on_change = onPostAuthPageChanged;
+    postAuthMenuOption.on_change = onPostAuthPageChanged;
+    postAuthMenuOption.entries_option.transform = [](const ftxui::EntryState& s) {
+        auto element = ftxui::text(s.label) | ftxui::center;
+        if (s.focused) {
+            return element | ftxui::bold | ftxui::color(theme::Base) | ftxui::bgcolor(theme::Mauve);
+        }
+        if (s.active) {
+            return element | ftxui::bold | ftxui::color(theme::Mauve);
+        }
+        return element | ftxui::color(theme::Overlay2);
+    };
 
 	auto postAuthMenu = ftxui::Menu(postAuthEntries, &postAuthPage, postAuthMenuOption);
 
@@ -178,25 +131,38 @@ void App::run() {
 	});
 
 	// ── Top-Level Tab ────────────────────────────────────────────────
-	auto container
-		= ftxui::Container::Tab({preAuthContainer, postAuthContainer}, &section) | ftxui::border;
+	auto topContainer
+		= ftxui::Container::Tab({preAuthContainer, postAuthContainer}, &section);
+
+	auto container = ftxui::Renderer(topContainer, [&] {
+		return topContainer->Render()
+			| ftxui::color(theme::Text)
+			| ftxui::bgcolor(theme::Base)
+			| ftxui::borderStyled(ftxui::ROUNDED)
+			| ftxui::color(theme::Mauve);
+	});
 
 	// ── Global Keyboard Shortcuts ────────────────────────────────────
 	auto app = ftxui::CatchEvent(container, [&](ftxui::Event event) -> bool {
-		// ESC: quit
 		if (event == ftxui::Event::Escape) {
 			screen.Exit();
 			return true;
 		}
+        
+        if (event == ftxui::Event::Character('r') || event == ftxui::Event::Character('R')) {
+            if (section == 1) {
+                if (postAuthPage == 0) dashboard.doRefresh();
+                else if (postAuthPage == 1) historyPage.doRefresh();
+                // Add more as needed
+                return true;
+            }
+        }
 
-		// Ctrl+Left / Ctrl+Right: switch pages
-		if (event == ftxui::Event::ArrowLeftCtrl) {
+		if (event == ftxui::Event::ArrowLeftCtrl || event == ftxui::Event::Character('[')) {
 			if (section == 0) {
-				// Pre-auth: 0=Login, 1=Sign Up
 				if (preAuthPage > 0)
 					preAuthPage--;
 			} else {
-				// Post-auth: 0..5
 				if (postAuthPage > 0) {
 					postAuthPage--;
 					onPostAuthPageChanged();
@@ -205,13 +171,11 @@ void App::run() {
 			return true;
 		}
 
-		if (event == ftxui::Event::ArrowRightCtrl) {
+		if (event == ftxui::Event::ArrowRightCtrl || event == ftxui::Event::Character(']')) {
 			if (section == 0) {
-				// Pre-auth: 0=Login, 1=Sign Up
 				if (preAuthPage < 1)
 					preAuthPage++;
 			} else {
-				// Post-auth: 0..5
 				if (postAuthPage < 5) {
 					postAuthPage++;
 					onPostAuthPageChanged();
@@ -220,39 +184,10 @@ void App::run() {
 			return true;
 		}
 
-		if (event.is_character()) {
-			auto c = event.character();
-			if (c == "[") {
-				if (section == 0) {
-					if (preAuthPage > 0)
-						preAuthPage--;
-				} else {
-					if (postAuthPage > 0) {
-						postAuthPage--;
-						onPostAuthPageChanged();
-					}
-				}
-				return true;
-			}
-			if (c == "]") {
-				if (section == 0) {
-					if (preAuthPage < 1)
-						preAuthPage++;
-				} else {
-					if (postAuthPage < 5) {
-						postAuthPage++;
-						onPostAuthPageChanged();
-					}
-				}
-				return true;
-			}
-		}
-
 		return false;
 	});
 
 	screen.Loop(app);
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 	client.stop();
 	clientThread.join();
 }

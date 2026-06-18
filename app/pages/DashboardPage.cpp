@@ -1,12 +1,14 @@
 #include "app/pages/DashboardPage.hpp"
+#include "app/Theme.hpp"
 #include "app/client/Client.hpp"
+#include "libs/base/string.hpp"
 
 #include <ftxui/component/component_options.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <charconv>
+#include <cstdio>
 #include <string>
-#include <vector>
 
 DashboardPage::DashboardPage(Client &client,
                              ftxui::ScreenInteractive &screen,
@@ -14,84 +16,105 @@ DashboardPage::DashboardPage(Client &client,
     : _client(client), _screen(screen), _username(username) {
 }
 
-void DashboardPage::parseRawLogs(const std::string &raw,
-                                 std::vector<LogEntry> &parsed,
-                                 std::vector<u64> &history,
-                                 usize maxEntries) {
-    parsed.clear();
-    history.clear();
+void DashboardPage::parseTransactionHistory(const std::string &raw,
+											base::Vector<LogEntry> &parsed) {
+	parsed.clear();
 
-    if (raw.empty()) {
-        return;
-    }
+	if (raw.empty()) {
+		return;
+	}
 
-    auto src = std::string_view{raw};
-    if (!src.empty() && src.back() == '\n')
-        src.remove_suffix(1);
+	auto src = std::string_view{raw};
+	if (!src.empty() && src.back() == '\n')
+		src.remove_suffix(1);
 
-    std::vector<std::string_view> lines;
-    lines.reserve(maxEntries > 0 ? maxEntries : 20);
-    {
-        std::string_view::size_type pos = 0;
-        while (pos < src.size()) {
-            auto nl = src.find('\n', pos);
-            if (nl == std::string_view::npos) {
-                lines.push_back(src.substr(pos));
-                break;
-            }
-            lines.push_back(src.substr(pos, nl - pos));
-            pos = nl + 1;
-        }
-    }
+	base::Vector<std::string_view> lines;
+	{
+		std::string_view::size_type pos = 0;
+		while (pos < src.size()) {
+			auto nl = src.find('\n', pos);
+			if (nl == std::string_view::npos) {
+				lines.push_back(src.substr(pos));
+				break;
+			}
+			lines.push_back(src.substr(pos, nl - pos));
+			pos = nl + 1;
+		}
+	}
 
-    auto startIdx = lines.size() > maxEntries ? lines.size() - maxEntries : 0;
-    parsed.reserve(maxEntries > 0 ? maxEntries : lines.size());
-    history.reserve(parsed.capacity());
+	parsed.reserve(lines.size());
 
-    for (auto i = startIdx; i < lines.size(); ++i) {
-        auto line = lines[i];
-        if (line.size() < 21 || line[0] != '[')
-            continue;
+	static constexpr const char *kOperationNames[] = {
+		"Deposit",	   // 0
+		"Withdrawal",  // 1
+		"Transfer Out", // 2
+		"Transfer In", // 3
+	};
 
-        auto timeStr = std::string(line.substr(12, 8));
+	for (auto i = 0; i < lines.size(); ++i) {
+		auto line = lines[i];
+		if (line.empty())
+			continue;
 
-        auto bodyStart = line.find("] ");
-        if (bodyStart == std::string_view::npos)
-            continue;
-        auto body = line.substr(bodyStart + 2);
+		// Format: type|counterparty|amount|balanceAfter|timestamp
+		auto pipe1 = line.find('|');
+		if (pipe1 == std::string_view::npos)
+			continue;
+		auto pipe2 = line.find('|', pipe1 + 1);
+		if (pipe2 == std::string_view::npos)
+			continue;
+		auto pipe3 = line.find('|', pipe2 + 1);
+		if (pipe3 == std::string_view::npos)
+			continue;
+		auto pipe4 = line.find('|', pipe3 + 1);
+		if (pipe4 == std::string_view::npos)
+			continue;
 
-        auto lastSpace = body.rfind(' ');
-        if (lastSpace == std::string_view::npos)
-            continue;
+		auto typeStr = line.substr(0, pipe1);
+		auto amountStr = line.substr(pipe2 + 1, pipe3 - pipe2 - 1);
+		auto balanceAfterStr = line.substr(pipe3 + 1, pipe4 - pipe3 - 1);
+		auto timestampStr = line.substr(pipe4 + 1);
 
-        u64 balance = 0;
-        auto balStr = body.substr(lastSpace + 1);
-        auto [ptr, ec] = std::from_chars(balStr.data(), balStr.data() + balStr.size(), balance);
-        if (ec != std::errc{})
-            continue;
-        history.push_back(balance);
+		unsigned int type = 0;
+		std::from_chars(typeStr.data(), typeStr.data() + typeStr.size(), type);
 
-        auto bodyLessBal = body.substr(0, lastSpace);
-        auto secondLastSpace = bodyLessBal.rfind(' ');
+		u64 amount = 0;
+		std::from_chars(amountStr.data(), amountStr.data() + amountStr.size(), amount);
 
-        std::string operation;
-        std::string amount;
+		u64 balanceAfter = 0;
+		std::from_chars(balanceAfterStr.data(), balanceAfterStr.data() + balanceAfterStr.size(),
+						balanceAfter);
 
-        if (secondLastSpace != std::string_view::npos) {
-            auto lastToken = bodyLessBal.substr(secondLastSpace + 1);
-            if (!lastToken.empty() && (lastToken[0] == '+' || lastToken[0] == '-')) {
-                amount = lastToken;
-                operation = bodyLessBal.substr(0, secondLastSpace);
-            } else {
-                amount.clear();
-                operation = bodyLessBal;
-            }
-        } else {
-            operation = bodyLessBal;
-        }
+		u64 timestamp = 0;
+		std::from_chars(timestampStr.data(), timestampStr.data() + timestampStr.size(), timestamp);
 
-        parsed.push_back({std::move(timeStr), std::move(operation), std::move(amount), balance});
-    }
+		// Operation name from type
+		base::String operation = (type < 4) ? base::String(kOperationNames[type]) : base::String("Unknown");
+
+		// Format amount with sign: incoming (0 or 3) gets "+", outgoing gets empty prefix
+		std::string amountRaw;
+		if (type == 0 || type == 3) {
+			amountRaw = "+" + std::to_string(amount);
+		} else {
+			amountRaw = std::to_string(amount);
+		}
+		base::String amountFormatted{std::string_view(amountRaw)};
+
+		// Convert epoch seconds to HH:MM:SS (UTC)
+		auto hrs = (timestamp / 3600) % 24;
+		auto mins = (timestamp / 60) % 60;
+		auto secs = timestamp % 60;
+		char timeBuf[9];
+		std::snprintf(timeBuf,
+					  sizeof(timeBuf),
+					  "%02llu:%02llu:%02llu",
+					  static_cast<unsigned long long>(hrs),
+					  static_cast<unsigned long long>(mins),
+					  static_cast<unsigned long long>(secs));
+
+		parsed.emplace_back(
+			base::String(timeBuf), std::move(operation), std::move(amountFormatted), balanceAfter);
+	}
 }
 
 void DashboardPage::doRefresh() {
@@ -101,18 +124,20 @@ void DashboardPage::doRefresh() {
         _status.clear();
     }
 
-    _client.getLogs(_username, [this](std::optional<std::string> logs) {
-        auto parsed = std::vector<LogEntry>{};
-        auto history = std::vector<u64>{};
+    _client.getTransactionHistory(_username, 5, [this](std::optional<std::string> resp) {
+        auto parsed = base::Vector<LogEntry>{};
         auto ok = false;
-        if (logs) {
+        if (resp) {
             ok = true;
-            parseRawLogs(*logs, parsed, history, 5);
+            parseTransactionHistory(*resp, parsed);
         }
-        _screen.Post([this, parsed = std::move(parsed), history = std::move(history), ok] {
+        _screen.Post([this, parsed = std::move(parsed), ok] {
             if (ok) {
                 _parsedLogs = std::move(parsed);
-                _balanceHistory = std::move(history);
+                _balanceHistory.clear();
+                for (const auto &e : _parsedLogs) {
+                    _balanceHistory.push_back(e.balance);
+                }
                 _balanceStr
                     = _balanceHistory.empty() ? "0" : std::to_string(_balanceHistory.back());
                 _logsStatus.clear();
@@ -120,8 +145,8 @@ void DashboardPage::doRefresh() {
                 _parsedLogs.clear();
                 _balanceHistory.clear();
                 _balanceStr = "ERROR";
-                _status = "Failed to fetch logs";
-                _logsStatus = "Failed to fetch logs";
+                _status = "Failed to fetch history";
+                _logsStatus = "Failed to fetch history";
             }
             _screen.RequestAnimationFrame();
         });
@@ -139,187 +164,164 @@ void DashboardPage::doPing() {
         _screen.Post([this, ok, ms] {
             if (ok) {
                 _latencyStr = std::to_string(ms) + "ms";
+                _latencyVal = ms;
             } else {
                 _latencyStr = "ERR";
+                _latencyVal = -1;
             }
             _screen.RequestAnimationFrame();
         });
     });
 }
 
-<<<<<<< HEAD
-void DashboardPage::onExit() {
-	_screen.Exit();
-}
-
-ftxui::Component DashboardPage::build() {
-	auto refreshBtn = ftxui::Button("Refresh", [this] { doRefresh(); });
-	auto logoutBtn = ftxui::Button("Logout", [this] { onLogout(); });
-	auto exitBtn = ftxui::Button("Exit", [this] { onExit(); });
-	auto settingsBtn = ftxui::Button("Account Settings", [this] { _page = 3; });
-	auto logoutBtn = ftxui::Button("Logout", [this] { onLogout(); });
-	auto exitBtn = ftxui::Button("Exit", [this] { onExit(); });
-
-	auto container = ftxui::Container::Vertical({
-		refreshBtn,
-		transferBtn,
-		settingsBtn,
-		logoutBtn,
-		exitBtn,
-	});
-
-	return ftxui::Renderer(container, [this, refreshBtn, logoutBtn, exitBtn] {
-		return ftxui::vbox({
-				   ftxui::text("Dashboard") | ftxui::bold | ftxui::center,
-				   ftxui::separator(),
-				   ftxui::text(" Welcome, " + _username + "!"),
-				   ftxui::text(" Balance: " + _balanceStr),
-				   ftxui::separator(),
-				   refreshBtn->Render() | ftxui::center,
-				   transferBtn->Render() | ftxui::center,
-				   settingsBtn->Render() | ftxui::center,
-				   logoutBtn->Render() | ftxui::center,
-				   exitBtn->Render() | ftxui::center,
-				   ftxui::text(_status) | ftxui::center,
-			   })
-			   | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 40);
-	});
-=======
-// ── Append helpers ──
-
-static void appendPaddedRight(std::string &out, std::string_view s, std::size_t n) {
-    if (s.size() >= n) {
-        out.append(s.substr(0, n));
-    } else {
-        out.append(s);
-        out.append(n - s.size(), ' ');
-    }
-}
-
-static void appendPaddedLeft(std::string &out, std::string_view s, std::size_t n) {
-    if (s.size() >= n) {
-        out.append(s.substr(0, n));
-    } else {
-        out.append(n - s.size(), ' ');
-        out.append(s);
-    }
-}
-
-static void formatLogLine(std::string &line,
-                          std::string_view time,
-                          std::string_view operation,
-                          std::string_view amount,
-                          u64 balance) {
-    char balBuf[32];
-    auto [p, _] = std::to_chars(balBuf, balBuf + sizeof(balBuf), balance);
-    auto balStr = std::string_view(balBuf, static_cast<std::size_t>(p - balBuf));
-
-    line.clear();
-    line.reserve(64);
-    line += ' ';
-    appendPaddedRight(line, time, 10);
-    appendPaddedRight(line, operation, 20);
-    appendPaddedLeft(line, amount.empty() ? std::string_view("--") : amount, 10);
-    line += "  ";
-    appendPaddedLeft(line, balStr, 12);
-}
-
 // ── Build ──
 
 ftxui::Component DashboardPage::build() {
-    auto renderer = ftxui::Renderer([this] {
-        ++_spinnerFrame;
+    auto renderer = ftxui::Renderer([this]() -> ftxui::Element {
+        // ── Latency Color ──
+        auto latencyColor = theme::Green;
+        if (_latencyVal > 100) latencyColor = theme::Yellow;
+        if (_latencyVal > 500 || _latencyVal < 0) latencyColor = theme::Red;
 
         // ── Account Info ───────────────────────────────────────
-        auto balanceAmount = _balanceStr.empty() ? "0" : std::string_view(_balanceStr);
-
-        std::string balanceDispStr;
-        balanceDispStr.reserve(balanceAmount.size() + 2);
-        balanceDispStr += "$ ";
-        balanceDispStr += balanceAmount;
-
         auto accountInfo = ftxui::vbox({
             ftxui::hbox({
-                ftxui::text(" User: "),
-                ftxui::text(_username) | ftxui::bold,
+                ftxui::text(" User: ") | ftxui::color(theme::Subtext0),
+                ftxui::text(_username) | ftxui::bold | ftxui::color(theme::Mauve),
                 ftxui::filler(),
-                ftxui::text(" Latency: "),
-                ftxui::text(_latencyStr) | ftxui::bold,
+                ftxui::text(" Latency: ") | ftxui::color(theme::Subtext0),
+                ftxui::text(_latencyStr) | ftxui::bold | ftxui::color(latencyColor),
             }),
-        }) | ftxui::border;
+        }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface0);
 
         // ── Balance Display ────────────────────────────────────
         auto balanceDisplay = ftxui::hbox({
-            ftxui::text(" Current Balance: ") | ftxui::bold,
-            ftxui::text(balanceDispStr),
+            ftxui::text(" Current Balance ") | ftxui::bold | ftxui::color(theme::Subtext1),
             ftxui::filler(),
-        }) | ftxui::border
-           | ftxui::size(ftxui::WIDTH, ftxui::LESS_THAN, 28)
+            ftxui::text("$ ") | ftxui::color(theme::Yellow),
+            ftxui::text(_balanceStr.empty() ? "0" : _balanceStr) | ftxui::bold | ftxui::color(theme::Yellow),
+        }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Yellow)
+           | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 30)
            | ftxui::center;
 
         // ── Recent Activity ────────────────────────────────────
         auto logElements = ftxui::Elements();
-        logElements.reserve(4 + _parsedLogs.size());
-
         if (!_logsStatus.empty()) {
-            if (_logsStatus == "Loading...") {
-                logElements.push_back(ftxui::text(" Fetching data...") | ftxui::dim);
-            } else {
-                logElements.push_back(ftxui::text(" " + _logsStatus));
-            }
+            logElements.push_back(ftxui::text(_logsStatus) | ftxui::dim | ftxui::center);
         } else if (_parsedLogs.empty()) {
-            logElements.push_back(ftxui::text(" No transactions yet") | ftxui::dim);
+            logElements.push_back(ftxui::text("No transactions yet") | ftxui::dim | ftxui::center);
         } else {
-            // Header row
-            std::string hdr;
-            hdr.reserve(1 + 10 + 20 + 10 + 2 + 12);
-            hdr += ' ';
-            appendPaddedRight(hdr, "Time", 10);
-            appendPaddedRight(hdr, "Operation", 20);
-            appendPaddedLeft(hdr, "Change", 10);
-            hdr += "  ";
-            appendPaddedLeft(hdr, "Balance", 12);
-            logElements.push_back(ftxui::text(std::move(hdr)) | ftxui::bold);
-            logElements.push_back(ftxui::separator() | ftxui::dim);
+            // Header
+            logElements.push_back(ftxui::hbox({
+                ftxui::text(" TIME") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
+                ftxui::text(" OPERATION") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 20),
+                ftxui::text(" CHANGE") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
+                ftxui::filler(),
+                ftxui::text(" BALANCE ") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
+            }) | ftxui::bold | ftxui::color(theme::Subtext1));
+            logElements.push_back(ftxui::separator() | ftxui::color(theme::Surface1));
 
-            std::string line;
             for (const auto &e : _parsedLogs) {
-                formatLogLine(line, e.time, e.operation, e.amount, e.balance);
-                logElements.push_back(ftxui::text(line));
+                auto opColor = theme::Text;
+                if (e.operation.view().find("Deposit") != std::string::npos || 
+                    e.operation.view().find("Transfer In") != std::string::npos) {
+                    opColor = theme::Green;
+                } else if (e.operation.view().find("Withdraw") != std::string::npos || 
+                           e.operation.view().find("Transfer Out") != std::string::npos) {
+                    opColor = theme::Red;
+                }
+
+                logElements.push_back(ftxui::hbox({
+                    ftxui::text(" " + std::string(e.time.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::color(theme::Overlay2),
+                    ftxui::text(" " + std::string(e.operation.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 20) | ftxui::color(opColor),
+                    ftxui::text(std::string(e.amount.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::color(opColor) | ftxui::align_right,
+                    ftxui::filler(),
+                    ftxui::text(std::to_string(e.balance) + " ") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::align_right | ftxui::color(theme::Text),
+                }));
             }
         }
 
-        auto logBox = ftxui::vbox(std::move(logElements))
-                      | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 5);
-
         auto logsCard = ftxui::vbox({
-            ftxui::text(" Recent Activity") | ftxui::bold,
-            ftxui::separator(),
-            logBox,
-        }) | ftxui::border;
+            ftxui::text(" Recent Activity") | ftxui::bold | ftxui::color(theme::Sapphire),
+            ftxui::separator() | ftxui::color(theme::Sapphire),
+            ftxui::vbox(std::move(logElements)) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 5),
+        }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1);
 
-        // ── Status line ────────────────────────────────────────
-        auto errEl = _status.empty()
-                         ? ftxui::emptyElement()
-                         : ftxui::text(_status) | ftxui::center;
+		// ── Balance Graph ──────────────────────────────────────
+		auto graphElement = ftxui::emptyElement();
+		if (_balanceHistory.size() >= 2) {
+			graphElement = ftxui::vbox({
+							   ftxui::text(" Balance History") | ftxui::bold | ftxui::color(theme::Teal),
+							   ftxui::separator() | ftxui::color(theme::Teal),
+							   ftxui::graph([this](int width, int height) {
+								   std::vector<int> out(width);
+								   if (_balanceHistory.empty())
+									   return out;
+								   u64 minBal = _balanceHistory[0];
+								   u64 maxBal = _balanceHistory[0];
+								   for (auto b : _balanceHistory) {
+									   if (b < minBal)
+										   minBal = b;
+									   if (b > maxBal)
+										   maxBal = b;
+								   }
+								   for (int i = 0; i < width; ++i) {
+									   if (_balanceHistory.size() < 2) {
+										   out[i] = height / 2;
+										   continue;
+									   }
+									   float t = (float)i / (width - 1);
+									   float idxF = t * (_balanceHistory.size() - 1);
+									   size_t idx = (size_t)idxF;
+									   float mix = idxF - idx;
 
-        // ── Assemble ────────────────────────────────────────────
+									   u64 val = _balanceHistory[idx];
+									   if (idx + 1 < _balanceHistory.size()) {
+										   val = (u64)((1.0f - mix) * _balanceHistory[idx]
+													   + mix * _balanceHistory[idx + 1]);
+									   }
+
+									   if (maxBal == minBal) {
+										   out[i] = height / 2;
+									   } else {
+										   out[i]
+											   = (int)((float)(val - minBal) / (maxBal - minBal)
+													   * (height - 1));
+									   }
+								   }
+								   return out;
+							   }) | ftxui::color(theme::Teal)
+								   | ftxui::flex,
+						   })
+						   | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1)
+						   | ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, 10);
+		}
+
+        // ── Status line ──
+        auto errEl = _status.empty() ? ftxui::emptyElement() : ftxui::text(_status) | ftxui::color(theme::Red) | ftxui::center;
+
         return ftxui::vbox({
-                   ftxui::text("Dashboard") | ftxui::bold | ftxui::center,
-                   ftxui::separator(),
+                   ftxui::text("BANKING DASHBOARD") | ftxui::bold | ftxui::center | ftxui::color(theme::Mauve),
+                   ftxui::separator() | ftxui::color(theme::Mauve),
                    ftxui::text(""),
-                   balanceDisplay,
+                   ftxui::hbox({
+                       balanceDisplay | ftxui::flex,
+                       ftxui::text("  "),
+                       accountInfo | ftxui::flex,
+                   }),
                    ftxui::text(""),
-                   accountInfo,
+                   graphElement,
                    ftxui::text(""),
-                   logsCard,
+                   logsCard | ftxui::flex,
                    errEl,
                    ftxui::filler(),
-                   ftxui::text("[1] Dashboard  [2] History  [3] Deposit  [4] Withdraw  [5] Transfer  [6] Settings") | ftxui::dim | ftxui::center,
-               })
-               | ftxui::border;
+                   ftxui::hbox({
+                       ftxui::text(" Ctrl+Arrows or [ ] to switch tabs ") | ftxui::dim,
+                       ftxui::filler(),
+                       ftxui::text(" Press 'R' to refresh data ") | ftxui::dim,
+                   }),
+               });
     });
 
     return renderer;
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 }

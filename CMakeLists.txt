@@ -26,16 +26,6 @@ target_link_libraries(network PUBLIC
 
 
 add_executable(app
-<<<<<<< HEAD
-                app/main.cpp
-                app/App.cpp
-                app/client/Client.cpp
-                app/pages/LoginPage.cpp
-                app/pages/DashboardPage.cpp
-                app/pages/RegisterPage.cpp
-                app/pages/AccountSettingsPage.cpp
-                app/pages/TransferPage.cpp
-=======
 				app/main.cpp
 				app/App.cpp
 				app/client/Client.cpp
@@ -47,7 +37,6 @@ add_executable(app
 				app/pages/TransferPage.cpp
 				app/pages/SettingPage.cpp
 				app/pages/HistoryPage.cpp
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 )
 
 target_include_directories(app PUBLIC

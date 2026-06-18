@@ -5,6 +5,7 @@
 
 #include <asio.hpp>
 #include <atomic>
+#include <queue>
 #include <functional>
 #include <optional>
 #include <string>
@@ -46,21 +47,15 @@ struct Client {
 		void toggleAccount(const std::string &username, BoolHandler handler);
 		void ping(BoolHandler handler);
 		void getLogs(const std::string &username, StringHandler handler);
+		void getTransactionHistory(const std::string &username, u64 count, StringHandler handler);
+		void searchUsers(const std::string &prefix, StringHandler handler);
 
-<<<<<<< HEAD
-private:
-		void doConnect();
-		void sendRequest(PacketType type,
-						 const std::string &payload,
-						 std::function<void(bool, std::string)> handler);
-=======
 	private:
 		using Handler = std::function<void(bool, std::string)>;
 
 		void doConnect();
 		void sendRequest(PacketType type, const std::string &payload, Handler handler);
 		void recvLoop();
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 
 		asio::io_context _io;
 		asio::executor_work_guard<asio::io_context::executor_type> _work;
@@ -68,9 +63,6 @@ private:
 		std::string _host;
 		u16 _port;
 		std::atomic<bool> _connected{false};
-<<<<<<< HEAD
-=======
 		std::queue<Handler> _pending;
 		VoidHandler _disconnectHandler;
->>>>>>> 4758aae (Implement full banking terminal with comprehensive TUI and secure backend)
 };
