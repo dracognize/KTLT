@@ -74,10 +74,21 @@ void App::run() {
 	auto settingComp = settingPage.build();
 
 	// ── Pre-Auth ──────────────────────────────────────────────────────
-	auto preAuthContent = ftxui::Container::Tab({loginComp, signupComp}, &preAuthPage);
+	auto preAuthTabs = ftxui::Container::Tab({loginComp, signupComp}, &preAuthPage);
+	auto preAuthContent = preAuthTabs;
 
 	std::vector<std::string> preAuthEntries = {"Login", "Sign Up"};
 	auto preAuthMenuOption = ftxui::MenuOption::HorizontalAnimated();
+    preAuthMenuOption.entries_option.transform = [](const ftxui::EntryState& s) {
+        auto element = ftxui::text(s.label) | ftxui::center;
+        if (s.active) {
+            return element | ftxui::bold | ftxui::color(theme::Base) | ftxui::bgcolor(theme::Mauve);
+        }
+        if (s.focused) {
+            return element | ftxui::bold | ftxui::color(theme::Mauve) | ftxui::bgcolor(theme::Surface1);
+        }
+        return element | ftxui::color(theme::Overlay2);
+    };
 
 	auto preAuthMenu
 		= ftxui::Menu(preAuthEntries, &preAuthPage, preAuthMenuOption);
@@ -93,11 +104,10 @@ void App::run() {
 	});
 
 	// ── Post-Auth ─────────────────────────────────────────────────────
-	auto postAuthContent
-		= ftxui::Container::Tab(
+	auto postAuthTabs = ftxui::Container::Tab(
 			  {dashComp, historyComp, depositComp, withdrawComp, transferComp, settingComp},
-			  &postAuthPage)
-		  | ftxui::flex;
+			  &postAuthPage);
+	auto postAuthContent = postAuthTabs | ftxui::flex;
 
 	std::vector<std::string> postAuthEntries
 		= {"Dashboard", "History", "Deposit", "Withdraw", "Transfer", "Settings"};
@@ -108,6 +118,7 @@ void App::run() {
 		} else if (postAuthPage == 1) {
 			historyPage.doRefresh();
 		}
+		postAuthTabs->SetActiveChild(postAuthTabs->ChildAt(postAuthPage));
 	};
 
 	auto postAuthMenuOption = ftxui::MenuOption::HorizontalAnimated();
@@ -131,11 +142,11 @@ void App::run() {
 	});
 
 	// ── Top-Level Tab ────────────────────────────────────────────────
-	auto topContainer
+	auto topTabs
 		= ftxui::Container::Tab({preAuthContainer, postAuthContainer}, &section);
 
-	auto container = ftxui::Renderer(topContainer, [&] {
-		return topContainer->Render()
+	auto container = ftxui::Renderer(topTabs, [&] {
+		return topTabs->Render()
 			| ftxui::color(theme::Text)
 			| ftxui::bgcolor(theme::Base)
 			| ftxui::borderStyled(ftxui::ROUNDED)
@@ -160,8 +171,10 @@ void App::run() {
 
 		if (event == ftxui::Event::ArrowLeftCtrl || event == ftxui::Event::Character('[')) {
 			if (section == 0) {
-				if (preAuthPage > 0)
+				if (preAuthPage > 0) {
 					preAuthPage--;
+					preAuthTabs->SetActiveChild(preAuthTabs->ChildAt(preAuthPage));
+				}
 			} else {
 				if (postAuthPage > 0) {
 					postAuthPage--;
@@ -173,8 +186,10 @@ void App::run() {
 
 		if (event == ftxui::Event::ArrowRightCtrl || event == ftxui::Event::Character(']')) {
 			if (section == 0) {
-				if (preAuthPage < 1)
+				if (preAuthPage < 1) {
 					preAuthPage++;
+					preAuthTabs->SetActiveChild(preAuthTabs->ChildAt(preAuthPage));
+				}
 			} else {
 				if (postAuthPage < 5) {
 					postAuthPage++;

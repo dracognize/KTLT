@@ -163,153 +163,156 @@ ftxui::Component SettingPage::build() {
 				_onLogout();
 		},
 		theme::Button(theme::Overlay2));
-	auto logoutConfirmNo = ftxui::Button(
+	_logoutConfirmNo = ftxui::Button(
 		" CANCEL ", [this] { _showLogoutConfirm = false; }, theme::Button(theme::Overlay2));
 
 	_lockConfirmYes
 		= ftxui::Button(" LOCK ACCOUNT ", [this] { doLockAccount(); }, theme::Button(theme::Red));
-	auto lockConfirmNo = ftxui::Button(
+	_lockConfirmNo = ftxui::Button(
 		" CANCEL ", [this] { _showLockConfirm = false; }, theme::Button(theme::Overlay2));
 
-	auto logoutConfirmContainer = ftxui::Container::Horizontal({_logoutConfirmYes, logoutConfirmNo});
-	auto lockConfirmContainer = ftxui::Container::Horizontal({_lockConfirmYes, lockConfirmNo});
+	auto logoutConfirmContainer
+		= ftxui::Container::Horizontal({_logoutConfirmYes, _logoutConfirmNo});
+	auto lockConfirmContainer = ftxui::Container::Horizontal({_lockConfirmYes, _lockConfirmNo});
 
 	auto container = ftxui::Container::Vertical({
-	    _currentPassInput,
-	    _newPassInput,
-	    _confirmInput,
-	    _changeBtn,
-	    _logoutBtn,
-	    _lockBtn,
-	    ftxui::Maybe(logoutConfirmContainer, &_showLogoutConfirm),
-	    ftxui::Maybe(lockConfirmContainer, &_showLockConfirm),
+		_currentPassInput,
+		_newPassInput,
+		_confirmInput,
+		_changeBtn,
+		_logoutBtn,
+		_lockBtn,
+		ftxui::Maybe(logoutConfirmContainer, &_showLogoutConfirm),
+		ftxui::Maybe(lockConfirmContainer, &_showLockConfirm),
 	});
 
-	return ftxui::Renderer(container, [this, logoutConfirmContainer, lockConfirmContainer]() -> ftxui::Element {
-	    auto pwStrength = evaluateStrength(_newPassword);
-		auto strengthColor = theme::Red;
-		if (pwStrength == 1)
-			strengthColor = theme::Yellow;
-		if (pwStrength == 2)
-			strengthColor = theme::Green;
+	return ftxui::Renderer(
+		container, [this, logoutConfirmContainer, lockConfirmContainer]() -> ftxui::Element {
+			auto pwStrength = evaluateStrength(_newPassword);
+			auto strengthColor = theme::Red;
+			if (pwStrength == 1)
+				strengthColor = theme::Yellow;
+			if (pwStrength == 2)
+				strengthColor = theme::Green;
 
-		auto pwStrengthEl = _newPassword.empty()
-								? ftxui::emptyElement()
-								: ftxui::hbox({
-									  ftxui::text(" Strength: ") | ftxui::color(theme::Subtext0),
-									  ftxui::text(strengthLabel(pwStrength)) | ftxui::bold
-										  | ftxui::color(strengthColor),
-									  ftxui::filler(),
-								  });
+			auto pwStrengthEl
+				= _newPassword.empty()
+					  ? ftxui::emptyElement()
+					  : ftxui::hbox({
+							ftxui::text(" Strength: ") | ftxui::color(theme::Subtext0),
+							ftxui::text(strengthLabel(pwStrength)) | ftxui::bold
+								| ftxui::color(strengthColor),
+							ftxui::filler(),
+						});
 
-		auto statusEl = [this]() -> ftxui::Element {
-			if (_loading) {
-				++_spinnerFrame;
-				return ftxui::hbox({
-						   ftxui::spinner(21, _spinnerFrame) | ftxui::color(theme::Mauve),
-						   ftxui::text(" Processing..."),
-					   })
-					   | ftxui::center;
-			}
-			if (!_status.empty()) {
-				auto color = (_status.find("successfully") != std::string::npos) ? theme::Green
-																				 : theme::Red;
-				return ftxui::text(_status) | ftxui::color(color) | ftxui::center;
-			}
-			return ftxui::emptyElement();
-		}();
+			auto statusEl = [this]() -> ftxui::Element {
+				if (_loading) {
+					++_spinnerFrame;
+					return ftxui::hbox({
+							   ftxui::spinner(21, _spinnerFrame) | ftxui::color(theme::Mauve),
+							   ftxui::text(" Processing..."),
+						   })
+						   | ftxui::center;
+				}
+				if (!_status.empty()) {
+					auto color = (_status.find("successfully") != std::string::npos) ? theme::Green
+																					 : theme::Red;
+					return ftxui::text(_status) | ftxui::color(color) | ftxui::center;
+				}
+				return ftxui::emptyElement();
+			}();
 
-		auto mainEl
-			= ftxui::vbox({
-				  ftxui::text("ACCOUNT SETTINGS") | ftxui::bold | ftxui::center
-					  | ftxui::color(theme::Mauve),
-				  ftxui::separator() | ftxui::color(theme::Mauve),
-				  ftxui::text(""),
-				  ftxui::text(" CHANGE PASSWORD") | ftxui::bold | ftxui::color(theme::Subtext1),
-				  ftxui::hbox({
-					  ftxui::text(" CURRENT ") | ftxui::color(theme::Subtext0)
-						  | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
-					  _currentPassInput->Render() | ftxui::flex,
-				  }) | ftxui::borderStyled(ftxui::ROUNDED)
-					  | ftxui::color(theme::Surface1),
-				  ftxui::hbox({
-					  ftxui::text(" NEW     ") | ftxui::color(theme::Subtext0)
-						  | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
-					  _newPassInput->Render() | ftxui::flex,
-				  }) | ftxui::borderStyled(ftxui::ROUNDED)
-					  | ftxui::color(theme::Surface1),
-				  pwStrengthEl,
-				  ftxui::hbox({
-					  ftxui::text(" CONFIRM ") | ftxui::color(theme::Subtext0)
-						  | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
-					  _confirmInput->Render() | ftxui::flex,
-				  }) | ftxui::borderStyled(ftxui::ROUNDED)
-					  | ftxui::color(theme::Surface1),
-				  ftxui::text(""),
-				  ftxui::vbox({
-					  _changeBtn->Render(),
-					  _logoutBtn->Render(),
-				  }),
-				  statusEl,
-				  ftxui::text(""),
-				  ftxui::text(" DANGER ZONE ") | ftxui::bold | ftxui::center
-					  | ftxui::color(theme::Red),
-				  ftxui::separator() | ftxui::color(theme::Red),
-				  ftxui::hbox({
+			auto mainEl
+				= ftxui::vbox({
+					  ftxui::text("ACCOUNT SETTINGS") | ftxui::bold | ftxui::center
+						  | ftxui::color(theme::Mauve),
+					  ftxui::separator() | ftxui::color(theme::Mauve),
+					  ftxui::text(""),
+					  ftxui::text(" CHANGE PASSWORD") | ftxui::bold | ftxui::color(theme::Subtext1),
+					  ftxui::hbox({
+						  ftxui::text(" CURRENT ") | ftxui::color(theme::Subtext0)
+							  | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
+						  _currentPassInput->Render() | ftxui::flex,
+					  }) | ftxui::borderStyled(ftxui::ROUNDED)
+						  | ftxui::color(theme::Surface1),
+					  ftxui::hbox({
+						  ftxui::text(" NEW     ") | ftxui::color(theme::Subtext0)
+							  | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
+						  _newPassInput->Render() | ftxui::flex,
+					  }) | ftxui::borderStyled(ftxui::ROUNDED)
+						  | ftxui::color(theme::Surface1),
+					  pwStrengthEl,
+					  ftxui::hbox({
+						  ftxui::text(" CONFIRM ") | ftxui::color(theme::Subtext0)
+							  | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
+						  _confirmInput->Render() | ftxui::flex,
+					  }) | ftxui::borderStyled(ftxui::ROUNDED)
+						  | ftxui::color(theme::Surface1),
+					  ftxui::text(""),
+					  ftxui::vbox({
+						  _changeBtn->Render(),
+						  _logoutBtn->Render(),
+					  }),
+					  statusEl,
+					  ftxui::text(""),
+					  ftxui::text(" DANGER ZONE ") | ftxui::bold | ftxui::center
+						  | ftxui::color(theme::Red),
+					  ftxui::separator() | ftxui::color(theme::Red),
+					  ftxui::hbox({
+						  ftxui::filler(),
+						  _lockBtn->Render(),
+						  ftxui::filler(),
+					  }),
+					  ftxui::text(" Locking your account prevents all transactions") | ftxui::dim
+						  | ftxui::center | ftxui::color(theme::Overlay1),
+					  ftxui::text(" and logging in until an administrator unlocks it.") | ftxui::dim
+						  | ftxui::center | ftxui::color(theme::Overlay1),
 					  ftxui::filler(),
-					  _lockBtn->Render(),
-					  ftxui::filler(),
-				  }),
-				  ftxui::text(" Locking your account prevents all transactions") | ftxui::dim
-					  | ftxui::center | ftxui::color(theme::Overlay1),
-				  ftxui::text(" and logging in until an administrator unlocks it.") | ftxui::dim
-					  | ftxui::center | ftxui::color(theme::Overlay1),
-				  ftxui::filler(),
-			  })
-			  | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 40) | ftxui::center;
+				  })
+				  | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 40) | ftxui::center;
 
-		if (_showLogoutConfirm) {
-			return ftxui::dbox({
-				mainEl,
-				ftxui::vbox({
-					ftxui::text(" LOGOUT ") | ftxui::bold | ftxui::center
-						| ftxui::color(theme::Overlay2),
-					ftxui::separator() | ftxui::color(theme::Overlay2),
-					ftxui::text("Are you sure you want to logout?") | ftxui::center
-						| ftxui::color(theme::Text),
-					ftxui::text(""),
-					ftxui::hbox({ftxui::filler(),
-								 _logoutConfirmYes->Render(),
-								 ftxui::text("  "),
-								 _logoutConfirmYes->Parent()->ChildAt(1)->Render(),
-								 ftxui::filler()}),
-				}) | ftxui::borderStyled(ftxui::DOUBLE)
-					| ftxui::color(theme::Overlay2) | ftxui::bgcolor(theme::Base) | ftxui::center
-					| ftxui::clear_under,
-			});
-		}
-		if (_showLockConfirm) {
-			return ftxui::dbox({
-				mainEl,
-				ftxui::vbox({
-					ftxui::text(" LOCK ACCOUNT ") | ftxui::bold | ftxui::center
-						| ftxui::color(theme::Red),
-					ftxui::separator() | ftxui::color(theme::Red),
-					ftxui::text("Are you sure? This will disable your account") | ftxui::center
-						| ftxui::color(theme::Text),
-					ftxui::text("and log you out immediately.") | ftxui::center
-						| ftxui::color(theme::Text),
-					ftxui::text(""),
-					ftxui::hbox({ftxui::filler(),
-								 _lockConfirmYes->Render(),
-								 ftxui::text("  "),
-								 _lockConfirmYes->Parent()->ChildAt(1)->Render(),
-								 ftxui::filler()}),
-				}) | ftxui::borderStyled(ftxui::DOUBLE)
-					| ftxui::color(theme::Red) | ftxui::bgcolor(theme::Base) | ftxui::center
-					| ftxui::clear_under,
-			});
-		}
-		return mainEl;
-	});
+			if (_showLogoutConfirm) {
+				return ftxui::dbox({
+					mainEl,
+					ftxui::vbox({
+						ftxui::text(" LOGOUT ") | ftxui::bold | ftxui::center
+							| ftxui::color(theme::Overlay2),
+						ftxui::separator() | ftxui::color(theme::Overlay2),
+						ftxui::text("Are you sure you want to logout?") | ftxui::center
+							| ftxui::color(theme::Text),
+						ftxui::text(""),
+						ftxui::hbox({ftxui::filler(),
+									 _logoutConfirmYes->Render(),
+									 ftxui::text("  "),
+									 _logoutConfirmNo->Render(),
+									 ftxui::filler()}),
+					}) | ftxui::borderStyled(ftxui::DOUBLE)
+						| ftxui::color(theme::Overlay2) | ftxui::bgcolor(theme::Base)
+						| ftxui::center | ftxui::clear_under,
+				});
+			}
+			if (_showLockConfirm) {
+				return ftxui::dbox({
+					mainEl,
+					ftxui::vbox({
+						ftxui::text(" LOCK ACCOUNT ") | ftxui::bold | ftxui::center
+							| ftxui::color(theme::Red),
+						ftxui::separator() | ftxui::color(theme::Red),
+						ftxui::text("Are you sure? This will disable your account") | ftxui::center
+							| ftxui::color(theme::Text),
+						ftxui::text("and log you out immediately.") | ftxui::center
+							| ftxui::color(theme::Text),
+						ftxui::text(""),
+						ftxui::hbox({ftxui::filler(),
+									 _lockConfirmYes->Render(),
+									 ftxui::text("  "),
+									 _lockConfirmNo->Render(),
+									 ftxui::filler()}),
+					}) | ftxui::borderStyled(ftxui::DOUBLE)
+						| ftxui::color(theme::Red) | ftxui::bgcolor(theme::Base) | ftxui::center
+						| ftxui::clear_under,
+				});
+			}
+			return mainEl;
+		});
 }

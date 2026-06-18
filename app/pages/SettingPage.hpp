@@ -46,7 +46,9 @@ struct SettingPage {
 		ftxui::Component _lockBtn;
 
 		ftxui::Component _logoutConfirmYes;
+		ftxui::Component _logoutConfirmNo;
 		ftxui::Component _lockConfirmYes;
+		ftxui::Component _lockConfirmNo;
 
 		std::string _status;
 		bool _showLockConfirm = false;

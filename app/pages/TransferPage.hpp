@@ -2,7 +2,6 @@
 
 #include "libs/base/hash_set.hpp"
 #include "libs/base/string.hpp"
-#include "libs/base/types.hpp"
 #include "libs/base/vector.hpp"
 
 #include <ftxui/component/component.hpp>
