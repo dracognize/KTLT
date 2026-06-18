@@ -124,7 +124,7 @@ ftxui::Component HistoryPage::build() {
 
                 elements.push_back(ftxui::hbox({
                     ftxui::text(" " + std::string(e.time.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::color(theme::Overlay2),
-                    ftxui::text(" " + std::string(e.operation.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 22) | ftxui::color(opColor),
+                    ftxui::text(" " + std::string(e.operation.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 32) | ftxui::color(opColor),
                     ftxui::text(std::string(e.amount.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::color(opColor) | ftxui::align_right,
                     ftxui::filler(),
                     ftxui::text(std::to_string(e.balance) + " ") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::align_right | ftxui::color(theme::Text),
@@ -137,7 +137,7 @@ ftxui::Component HistoryPage::build() {
 
     auto container = ftxui::Container::Vertical({_searchInput, headerRow, tableRenderer});
 
-    return ftxui::Renderer(container, [this, tableRenderer, headerRow]() -> ftxui::Element {
+    auto renderer = ftxui::Renderer(container, [this, tableRenderer, headerRow]() -> ftxui::Element {
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - _lastRefreshTime).count();
         std::string timeAgo = (elapsed < 5) ? "just now" : std::to_string(elapsed) + "s ago";
@@ -163,4 +163,13 @@ ftxui::Component HistoryPage::build() {
             ftxui::text("Showing " + std::to_string(_entries.size()) + " entries") | ftxui::dim | ftxui::center,
         });
     });
+
+    auto component = ftxui::CatchEvent(renderer, [this](ftxui::Event e) {
+        if (e == ftxui::Event::Character('r') || e == ftxui::Event::Character('R')) {
+            doRefresh();
+            return true;
+        }
+        return false;
+    });
+    return component;
 }

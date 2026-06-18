@@ -71,6 +71,7 @@ void DashboardPage::parseTransactionHistory(const std::string &raw,
 			continue;
 
 		auto typeStr = line.substr(0, pipe1);
+		auto counterpartyStr = line.substr(pipe1 + 1, pipe2 - pipe1 - 1);
 		auto amountStr = line.substr(pipe2 + 1, pipe3 - pipe2 - 1);
 		auto balanceAfterStr = line.substr(pipe3 + 1, pipe4 - pipe3 - 1);
 		auto timestampStr = line.substr(pipe4 + 1);
@@ -88,8 +89,16 @@ void DashboardPage::parseTransactionHistory(const std::string &raw,
 		u64 timestamp = 0;
 		std::from_chars(timestampStr.data(), timestampStr.data() + timestampStr.size(), timestamp);
 
-		// Operation name from type
-		base::String operation = (type < 4) ? base::String(kOperationNames[type]) : base::String("Unknown");
+		// Operation name from type, appending counterparty for transfers
+		base::String operation;
+		if (type < 4) {
+			operation = base::String(kOperationNames[type]);
+			if ((type == 2 || type == 3) && !counterpartyStr.empty()) {
+				operation = base::String(std::string(kOperationNames[type]) + " " + std::string(counterpartyStr));
+			}
+		} else {
+			operation = base::String("Unknown");
+		}
 
 		// Format amount with sign: incoming (0 or 3) gets "+", outgoing gets empty prefix
 		std::string amountRaw;
@@ -113,7 +122,8 @@ void DashboardPage::parseTransactionHistory(const std::string &raw,
 					  static_cast<unsigned long long>(secs));
 
 		parsed.emplace_back(
-			base::String(timeBuf), std::move(operation), std::move(amountFormatted), balanceAfter);
+			base::String(timeBuf), std::move(operation), std::move(amountFormatted), balanceAfter,
+			base::String(counterpartyStr));
 	}
 }
 
@@ -214,7 +224,7 @@ ftxui::Component DashboardPage::build() {
             // Header
             logElements.push_back(ftxui::hbox({
                 ftxui::text(" TIME") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
-                ftxui::text(" OPERATION") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 20),
+                ftxui::text(" OPERATION") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 32),
                 ftxui::text(" CHANGE") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
                 ftxui::filler(),
                 ftxui::text(" BALANCE ") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
@@ -233,7 +243,7 @@ ftxui::Component DashboardPage::build() {
 
                 logElements.push_back(ftxui::hbox({
                     ftxui::text(" " + std::string(e.time.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::color(theme::Overlay2),
-                    ftxui::text(" " + std::string(e.operation.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 20) | ftxui::color(opColor),
+                    ftxui::text(" " + std::string(e.operation.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 32) | ftxui::color(opColor),
                     ftxui::text(std::string(e.amount.view())) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::color(opColor) | ftxui::align_right,
                     ftxui::filler(),
                     ftxui::text(std::to_string(e.balance) + " ") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12) | ftxui::align_right | ftxui::color(theme::Text),
@@ -323,5 +333,12 @@ ftxui::Component DashboardPage::build() {
                });
     });
 
-    return renderer;
+    auto component = ftxui::CatchEvent(renderer, [this](ftxui::Event e) {
+        if (e == ftxui::Event::Character('r') || e == ftxui::Event::Character('R')) {
+            doRefresh();
+            return true;
+        }
+        return false;
+    });
+    return component;
 }

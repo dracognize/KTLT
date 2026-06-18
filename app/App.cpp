@@ -159,16 +159,6 @@ void App::run() {
 			screen.Exit();
 			return true;
 		}
-        
-        if (event == ftxui::Event::Character('r') || event == ftxui::Event::Character('R')) {
-            if (section == 1) {
-                if (postAuthPage == 0) dashboard.doRefresh();
-                else if (postAuthPage == 1) historyPage.doRefresh();
-                // Add more as needed
-                return true;
-            }
-        }
-
 		if (event == ftxui::Event::ArrowLeftCtrl || event == ftxui::Event::Character('[')) {
 			if (section == 0) {
 				if (preAuthPage > 0) {

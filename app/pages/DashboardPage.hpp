@@ -24,6 +24,7 @@ struct DashboardPage {
 				base::String operation;
 				base::String amount;
 				u64 balance;
+				base::String counterparty;
 		};
 
 		static void parseTransactionHistory(const std::string &raw,

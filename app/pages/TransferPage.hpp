@@ -1,6 +1,5 @@
 #pragma once
 
-#include "libs/base/hash_set.hpp"
 #include "libs/base/string.hpp"
 #include "libs/base/vector.hpp"
 
@@ -26,6 +25,7 @@ struct TransferPage {
 		void onRecipientChanged();
 		void fetchUserDirectory();
 		void filterSuggestions();
+		void requestConfirmation();
 
 		Client &_client;
 		ftxui::ScreenInteractive &_screen;
@@ -41,12 +41,16 @@ struct TransferPage {
 		ftxui::Component _transferBtn;
 		ftxui::Component _backBtn;
 
+		ftxui::Component _confirmYes;
+		ftxui::Component _confirmNo;
+
 		std::string _status;
 		bool _loading = false;
 		int _spinnerFrame = 0;
+		bool _showConfirm = false;
 
 		// ── User directory / autocomplete ──
-		base::HashSet<base::String> _userCache;
+		base::Vector<base::String> _userCache;
 		base::Vector<base::String> _suggestions;
 		std::vector<std::string> _suggestionStrings;
 		ftxui::Component _suggestionsMenu;
