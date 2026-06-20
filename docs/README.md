@@ -21,14 +21,14 @@ A high-performance client-server banking application built with **C++26**, featu
 ```
 ┌─────────────────────┐         TCP/IP        ┌──────────────────────┐
 │   Client (TUI)      │ ◄───────────────────► │   Server             │
-│   app/              │      custom packet     │   server/            │
-│   FTXUI + ASIO      │      protocol          │   ASIO + threaded DB │
-└─────────────────────┘                        └──────────────────────┘
+│   app/              │      custom packet    │   server/            │
+│   FTXUI + ASIO      │      protocol         │   ASIO + threaded DB │
+└─────────────────────┘                       └──────────────────────┘
                                                          │
                                                 ┌────────┴────────┐
-                                                │  data.db         │
-                                                │  data/*.txn      │
-                                                │  data/*.log      │
+                                                │  data.db        │
+                                                │  data/*.txn     │
+                                                │  data/*.log     │
                                                 └─────────────────┘
 ```
 
