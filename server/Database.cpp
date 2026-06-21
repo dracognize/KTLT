@@ -37,14 +37,14 @@ namespace {
 		std::memcpy(dest, src.data(), len);
 	}
 
-	// Copy binary data into a fixed-size buffer (no null-termination assumed)
+	
 	template <size_t N> auto copyBinary(std::span<const u8> src, char (&dest)[N]) -> void {
 		std::memset(dest, 0, N);
 		auto len = (std::min)(src.size(), N);
 		std::memcpy(dest, src.data(), len);
 	}
 
-	// Validate that a username does not contain path traversal characters
+	
 	[[nodiscard]] auto isSafePathComponent(std::string_view name) -> bool {
 		return !name.empty() && name.size() <= UsernameMaxLen
 			   && name.find('/') == std::string_view::npos
@@ -53,12 +53,12 @@ namespace {
 			   && name.find('\0') == std::string_view::npos;
 	}
 
-	// Store salt + SHA-256(salt + ":" + password) into a password buffer
+	
 	void hashPasswordInto(std::string_view password, char (&dest)[PasswordStoreLen]) {
 		auto salt = base::generateSalt();
 		auto hash = base::hashPassword(password, salt);
-		// salt is 16 chars, hash is 64 hex chars
-		// Store as binary: first 16 bytes = salt chars, next 32 bytes = binary hash
+		
+		
 		std::array<u8, PasswordStoreLen> buf{};
 		std::memcpy(buf.data(), salt.data(), PasswordSaltLen);
 		auto rawHash = base::Sha256::hash(salt + ":" + std::string{password});
@@ -66,7 +66,7 @@ namespace {
 		copyBinary(std::span<const u8>(buf), dest);
 	}
 
-	// Verify a password against a stored salt+hash buffer
+	
 	[[nodiscard]] auto verifyPassword(std::string_view password,
 									  const char (&stored)[PasswordStoreLen]) -> bool {
 		std::string salt(stored, strnlen(stored, PasswordSaltLen));
@@ -87,7 +87,7 @@ namespace {
 		}
 	}
 
-} // namespace
+} 
 
 DbManager::DbManager(asio::io_context &io) : _io(io), _saveTimer(io) {
 	std::filesystem::create_directories(DataDir);
@@ -128,7 +128,7 @@ auto DbManager::load() -> void {
 		entry.record.isLocked = record.isLocked;
 	}
 
-	// Load binary transaction histories
+	
 	for (auto &[username, state] : _data) {
 		auto txnPath = std::string{DataDir} + "/" + username + ".txn";
 		std::ifstream txnFile(txnPath, std::ios::binary);
@@ -161,7 +161,7 @@ auto DbManager::save() -> void {
 		file.write(reinterpret_cast<const char *>(&record), sizeof(record));
 	}
 
-	// Write binary transaction histories
+	
 	for (const auto &[username, state] : _data) {
 		auto txnPath = std::string{DataDir} + "/" + username + ".txn";
 		std::ofstream txnFile(txnPath, std::ios::binary | std::ios::trunc);
@@ -295,13 +295,13 @@ auto DbManager::processItem(WorkItem &&item) -> void {
 					appendLog(asString(entry.record.logFile),
 							  "Account created with balance " + std::to_string(entry.record.balance));
 
-					// Record initial deposit as a transaction
+					
 					auto ts = std::chrono::duration_cast<std::chrono::seconds>(
 						std::chrono::system_clock::now().time_since_epoch())
 								  .count();
 					TransactionRecord rec{};
 					copyFrom(op.username, rec.username);
-					// counterparty stays zeroed (empty)
+					
 					rec.amount = DefaultBalance;
 					rec.balanceAfter = entry.record.balance;
 					rec.timestamp = static_cast<u64>(ts);
@@ -357,14 +357,14 @@ auto DbManager::processItem(WorkItem &&item) -> void {
 							+ std::to_string(op.change) + " " + std::to_string(it->second.record.balance);
 				appendLog(asString(it->second.record.logFile), line);
 
-				// Record the transaction
+				
 				{
 					auto ts = std::chrono::duration_cast<std::chrono::seconds>(
 						std::chrono::system_clock::now().time_since_epoch())
 								  .count();
 					TransactionRecord rec{};
 					copyFrom(op.username, rec.username);
-					// counterparty stays zeroed (empty)
+					
 					rec.amount = static_cast<u64>(op.change < 0 ? -op.change : op.change);
 					rec.balanceAfter = it->second.record.balance;
 					rec.timestamp = static_cast<u64>(ts);
@@ -397,7 +397,7 @@ auto DbManager::processItem(WorkItem &&item) -> void {
 						  "Transfer from " + op.sender + " +" + std::to_string(op.amount) + " "
 							  + std::to_string(dst->second.record.balance));
 
-				// Record transactions for both sender and recipient
+				
 				{
 					auto ts = std::chrono::duration_cast<std::chrono::seconds>(
 						std::chrono::system_clock::now().time_since_epoch())
@@ -463,7 +463,7 @@ auto DbManager::processItem(WorkItem &&item) -> void {
 					save();
 					_dirty = false;
 				}
-				// No callback for SaveOp
+				
 			}
 		},
 		std::move(item));
@@ -471,16 +471,16 @@ auto DbManager::processItem(WorkItem &&item) -> void {
 
 auto DbManager::onSaveTimer(std::error_code ec) -> void {
 	if (ec) {
-		// Timer cancelled or error — stop
+		
 		return;
 	}
-	// Queue a save operation (runs on worker thread)
+	
 	{
 		std::lock_guard<std::mutex> lock(_mutex);
 		_queue.emplace(SaveOp{});
 	}
 	_cv.notify_one();
-	// Reschedule
+	
 	_saveTimer.expires_after(SaveInterval);
 	_saveTimer.async_wait([this](std::error_code ec2) { onSaveTimer(ec2); });
 }

@@ -50,7 +50,7 @@ namespace packet {
 		};
 
 		asio::async_write(
-			socket, buffers, [handler, header, body](std::error_code ec, usize /*bytes*/) {
+			socket, buffers, [handler, header, body](std::error_code ec, usize ) {
 				if (handler) {
 					handler(ec);
 				}
@@ -64,7 +64,7 @@ namespace packet {
 		asio::async_read(
 			socket,
 			asio::buffer(*header),
-			[&socket, header, handler](std::error_code ec, usize /*bytes*/) {
+			[&socket, header, handler](std::error_code ec, usize ) {
 				if (ec) {
 					if (handler) {
 						handler(ec, PacketType{}, {});
@@ -82,7 +82,7 @@ namespace packet {
 				asio::async_read(
 					socket,
 					asio::buffer(body->data(), len),
-					[body, type, handler](std::error_code ec2, usize /*bytes*/) {
+					[body, type, handler](std::error_code ec2, usize ) {
 						if (handler) {
 							handler(ec2, ec2 ? PacketType{} : type, ec2 ? std::string{} : *body);
 						}
@@ -90,4 +90,4 @@ namespace packet {
 			});
 	}
 
-} // namespace packet
+} 

@@ -18,7 +18,7 @@ TransferPage::TransferPage(Client &client,
 }
 
 void TransferPage::requestConfirmation() {
-    // Validate input before showing confirmation
+    
     if (_recipient.empty() || _amountStr.empty()) {
         _status = "Please fill in all fields";
         return;
@@ -72,7 +72,7 @@ void TransferPage::doTransfer() {
     });
 }
 
-// ── User directory / autocomplete ────────────────────────────────────
+
 
 void TransferPage::onRecipientChanged() {
     if (!_cacheLoaded && !_cacheLoading) {
@@ -130,7 +130,7 @@ void TransferPage::filterSuggestions() {
         }
     }
 
-    // Keep only the first 5 suggestions to be server-friendly
+    
     if (_suggestions.size() > 5) {
         _suggestions.resize(5);
     }
@@ -144,7 +144,7 @@ void TransferPage::filterSuggestions() {
     _selectedSuggestion = 0;
 }
 
-// ── Build ────────────────────────────────────────────────────────────
+
 
 ftxui::Component TransferPage::build() {
     auto menu_option = ftxui::MenuOption::Vertical();
@@ -194,7 +194,7 @@ ftxui::Component TransferPage::build() {
 
     _amountInput = ftxui::Input(&_amountStr, "amount");
     _amountInput |= ftxui::CatchEvent([this](ftxui::Event e) {
-        // Amount field is focused — hide suggestions
+        
         _showSuggestions = false;
         if (e == ftxui::Event::Return) {
             requestConfirmation();

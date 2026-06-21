@@ -29,7 +29,7 @@ namespace base {
 						  _isBlack(false) {};
 			};
 
-			// --- Type aliases ---
+			
 			using value_type = t_ValueTypes;
 			using comparator_type = t_ComparatorTypes;
 			using allocator_type = t_Alloc;
@@ -43,7 +43,7 @@ namespace base {
 			using node_allocator = std::allocator_traits<t_Alloc>::template rebind_alloc<Node>;
 			using alloc_traits = std::allocator_traits<node_allocator>;
 
-			// --- Iterator ---
+			
 			template <class T_Node, class T_Ref, class T_Ptr> struct TreeIterator {
 					using iterator_category = std::bidirectional_iterator_tag;
 					using value_type = t_ValueTypes;
@@ -138,14 +138,14 @@ namespace base {
 			using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 		private:
-			// --- Internal members ---
+			
 			Node _header;
 			Node *_nil;
 			size_type _size = 0;
 			comparator_type _comp;
 			node_allocator _alloc;
 
-			// --- Internal helpers ---
+			
 
 			static constexpr auto _minimum(Node *n, Node *nil) noexcept -> Node * {
 				if (n == nil)
@@ -214,7 +214,7 @@ namespace base {
 				_header._right = _nil;
 			}
 
-			// --- Rotations ---
+			
 			constexpr auto _left_rotate(Node *x) noexcept -> void {
 				auto *y = x->_right;
 				x->_right = y->_left;
@@ -247,7 +247,7 @@ namespace base {
 				x->_parent = y;
 			}
 
-			// --- Insert fixup (CLRS) ---
+			
 			constexpr auto _insert_fixup(Node *z) noexcept -> void {
 				while (!z->_parent->_isBlack) {
 					if (z->_parent == z->_parent->_parent->_left) {
@@ -287,9 +287,9 @@ namespace base {
 				_root()->_isBlack = true;
 			}
 
-			// --- Transplant (CLRS) ---
-			// NOTE: does NOT set v->_parent when v == _nil
-			// because _nil == &_header and _header._parent == root
+			
+			
+			
 			constexpr auto _rb_transplant(Node *u, Node *v) noexcept -> void {
 				if (u->_parent == _nil)
 					_root_ref() = v;
@@ -301,9 +301,9 @@ namespace base {
 					v->_parent = u->_parent;
 			}
 
-			// --- Erase fixup (CLRS) ---
-			// Takes explicit x_parent because x may be _nil (sentinel),
-			// and _nil->_parent == _header._parent (root), not x's parent.
+			
+			
+			
 			constexpr auto _erase_fixup(Node *x, Node *x_parent) noexcept -> void {
 				while (x != _root() && x->_isBlack) {
 					auto *p = (x == _nil) ? x_parent : x->_parent;
@@ -475,7 +475,7 @@ namespace base {
 			}
 
 		public:
-			// --- Construction / Destruction ---
+			
 
 			constexpr RedBlackTree() noexcept(noexcept(node_allocator{}))
 				: _nil(&_header), _size(0) {
@@ -577,7 +577,7 @@ namespace base {
 				return *this;
 			}
 
-			// --- Iterators ---
+			
 			constexpr auto begin() noexcept -> iterator {
 				return iterator(_header._left, _nil);
 			}
@@ -618,7 +618,7 @@ namespace base {
 				return const_reverse_iterator{cbegin()};
 			}
 
-			// --- Capacity ---
+			
 			[[nodiscard]] constexpr auto empty() const noexcept -> bool {
 				return _size == 0;
 			}
@@ -631,7 +631,7 @@ namespace base {
 				return alloc_traits::max_size(_alloc);
 			}
 
-			// --- Modifiers ---
+			
 			constexpr auto clear() noexcept -> void {
 				_destroy_subtree(_root());
 				_root_ref() = _nil;
@@ -751,7 +751,7 @@ namespace base {
 				}
 			}
 
-			// --- Lookup ---
+			
 			constexpr auto find(this auto &&self, const value_type &val) -> decltype(auto) {
 				auto *n = self._root();
 				auto *nil = self._nil;
@@ -790,7 +790,7 @@ namespace base {
 				return iter_type(self._upper_bound(val), self._nil);
 			}
 
-			// --- Observers ---
+			
 			constexpr auto value_comp() const -> comparator_type {
 				return _comp;
 			}
@@ -807,4 +807,4 @@ namespace base {
 		-> void {
 		a.swap(b);
 	}
-} // namespace base
+} 

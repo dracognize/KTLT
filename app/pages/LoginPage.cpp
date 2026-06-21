@@ -68,7 +68,7 @@ void LoginPage::setStatus(std::string status) {
 
 ftxui::Component LoginPage::build() {
     auto input_option = ftxui::InputOption::Default();
-    // Removed unsupported focused_color/cursor_color
+    
 
     _userInput = ftxui::Input(&_username, "username", input_option);
     _userInput |= ftxui::CatchEvent([this](ftxui::Event e) {

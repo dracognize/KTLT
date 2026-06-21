@@ -123,9 +123,9 @@ namespace base {
 			h1 += h2;
 			return h1;
 		}
-	} // namespace murmur
+	} 
 
-	// ── Primary hash template (trivially copyable types) ──────────────
+	
 
 	template <class t_Type> struct hash {
 			[[nodiscard]] constexpr usize operator()(const t_Type &key) const noexcept {
@@ -136,7 +136,7 @@ namespace base {
 			}
 	};
 
-	// ── Hash specializations for base container types ────────────────
+	
 
 	template <class t_Char, class t_Traits, class t_Alloc>
 	struct hash<BasicString<t_Char, t_Traits, t_Alloc>> {
@@ -197,4 +197,4 @@ namespace base {
 				return h;
 			}
 	};
-} // namespace base
+} 

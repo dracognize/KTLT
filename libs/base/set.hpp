@@ -17,7 +17,7 @@ namespace base {
 			_base _tree;
 
 		public:
-			// --- Types ---
+			
 			using key_type = t_Key;
 			using value_type = t_Key;
 			using key_compare = t_Comparator;
@@ -34,7 +34,7 @@ namespace base {
 			using reverse_iterator = typename _base::const_reverse_iterator;
 			using const_reverse_iterator = typename _base::const_reverse_iterator;
 
-			// --- Construction ---
+			
 			Set() = default;
 
 			explicit Set(const key_compare &comp, const allocator_type &alloc = allocator_type{})
@@ -61,7 +61,7 @@ namespace base {
 			Set(const Set &) = default;
 			Set(Set &&) = default;
 
-			// --- Assignment ---
+			
 			auto operator=(const Set &) -> Set & = default;
 			auto operator=(Set &&) -> Set & = default;
 
@@ -71,7 +71,7 @@ namespace base {
 				return *this;
 			}
 
-			// --- Iterators ---
+			
 			auto begin() const noexcept -> const_iterator {
 				return _tree.begin();
 			}
@@ -97,7 +97,7 @@ namespace base {
 				return _tree.crend();
 			}
 
-			// --- Capacity ---
+			
 			[[nodiscard]] auto empty() const noexcept -> bool {
 				return _tree.empty();
 			}
@@ -108,7 +108,7 @@ namespace base {
 				return _tree.max_size();
 			}
 
-			// --- Modifiers ---
+			
 			auto clear() noexcept -> void {
 				_tree.clear();
 			}
@@ -153,7 +153,7 @@ namespace base {
 				return val;
 			}
 
-			// --- Lookup ---
+			
 			auto find(const key_type &val) const -> const_iterator {
 				return _tree.find(val);
 			}
@@ -175,7 +175,7 @@ namespace base {
 				return {lower_bound(val), upper_bound(val)};
 			}
 
-			// --- Observers ---
+			
 			auto key_comp() const -> key_compare {
 				return _tree.value_comp();
 			}
@@ -192,4 +192,4 @@ namespace base {
 			  Set<t_Key, t_Comparator, t_Allocator> &b) noexcept(noexcept(a.swap(b))) -> void {
 		a.swap(b);
 	}
-} // namespace base
+} 

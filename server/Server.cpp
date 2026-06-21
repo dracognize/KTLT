@@ -124,7 +124,7 @@ void Session::doRead() {
 			doWrite(std::to_underlying(ping), "PONG");
 			break;
 		case log_req: {
-			// Validate path component to prevent directory traversal
+			
 			if (data.empty() || data.find('/') != std::string::npos
 				|| data.find("..") != std::string::npos) {
 				doWrite(std::to_underlying(log_req), "");
@@ -182,7 +182,7 @@ void Session::doRead() {
 				return;
 			}
 			auto user = data.substr(0, delim);
-			u64 count = 20; // default
+			u64 count = 20; 
 			try {
 				count = std::stoull(data.substr(delim + 1));
 			} catch (...) {

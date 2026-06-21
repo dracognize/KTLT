@@ -24,7 +24,7 @@ namespace base {
 					}
 			};
 
-			// --- Type aliases ---
+			
 			using value_type = t_Type;
 			using size_type = usize;
 			using difference_type = isize;
@@ -37,7 +37,7 @@ namespace base {
 			using node_allocator = std::allocator_traits<t_Allocator>::template rebind_alloc<Node>;
 			using alloc_traits = std::allocator_traits<node_allocator>;
 
-			// --- Iterator ---
+			
 			template <class T_Node, class T_Ref, class T_Ptr> struct ForwardIterator {
 					using iterator_category = std::forward_iterator_tag;
 					using value_type = t_Type;
@@ -71,7 +71,7 @@ namespace base {
 						return tmp;
 					}
 
-					// Implicit conversion: iterator -> const_iterator
+					
 					template <class T_UNode, class T_URef, class T_UPtr>
 						requires std::convertible_to<T_UNode *, T_Node *>
 					constexpr ForwardIterator(
@@ -88,7 +88,7 @@ namespace base {
 				= ForwardIterator<const Node, const value_type &, const value_type *>;
 
 		private:
-			Node _head; // sentinel; _head._next is first element or nullptr
+			Node _head; 
 			size_type _size = 0;
 			node_allocator _alloc;
 
@@ -133,7 +133,7 @@ namespace base {
 			}
 
 		public:
-			// --- Construction ---
+			
 			constexpr ForwardList() noexcept(noexcept(node_allocator{})) = default;
 
 			constexpr explicit ForwardList(const t_Allocator &alloc) noexcept : _alloc(alloc) {
@@ -207,12 +207,12 @@ namespace base {
 				other._head._next = nullptr;
 			}
 
-			// --- Destructor ---
+			
 			constexpr ~ForwardList() noexcept {
 				_destroy_all();
 			}
 
-			// --- Assignment ---
+			
 			constexpr auto operator=(const ForwardList &other) -> ForwardList & {
 				if (this != &other) {
 					clear();
@@ -252,7 +252,7 @@ namespace base {
 				return *this;
 			}
 
-			// --- Iterators ---
+			
 			constexpr auto before_begin() noexcept -> iterator {
 				return iterator(&_head);
 			}
@@ -289,7 +289,7 @@ namespace base {
 				return const_iterator(nullptr);
 			}
 
-			// --- Capacity ---
+			
 			[[nodiscard]] constexpr auto empty() const noexcept -> bool {
 				return _head._next == nullptr;
 			}
@@ -302,12 +302,12 @@ namespace base {
 				return alloc_traits::max_size(_alloc);
 			}
 
-			// --- Element access ---
+			
 			constexpr auto front(this auto &&self) noexcept -> decltype(auto) {
 				return self._head._next->_value;
 			}
 
-			// --- Modifiers ---
+			
 			constexpr auto clear() noexcept -> void {
 				_destroy_all();
 			}
@@ -472,7 +472,7 @@ namespace base {
 				base::swap(_alloc, other._alloc);
 			}
 
-			// --- Operations ---
+			
 			constexpr auto reverse() noexcept -> void {
 				Node *prev = nullptr;
 				Node *curr = _head._next;
@@ -569,4 +569,4 @@ namespace base {
 						ForwardList<t_Type, t_Allocator> &b) noexcept(noexcept(a.swap(b))) -> void {
 		a.swap(b);
 	}
-} // namespace base
+} 

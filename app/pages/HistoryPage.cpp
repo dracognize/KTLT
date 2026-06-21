@@ -46,7 +46,7 @@ void HistoryPage::doRefresh() {
     });
 }
 
-// Sort helpers
+
 static auto getHeaderLabel(HistoryPage::SortColumn col) -> std::string_view {
     switch (col) {
         case HistoryPage::Time:      return " TIME ";

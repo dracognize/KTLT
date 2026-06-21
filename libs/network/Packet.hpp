@@ -32,9 +32,9 @@ namespace packet {
 				   const std::string &data,
 				   std::function<void(std::error_code)> handler) -> void;
 
-	// Note: socket is passed by pointer. The caller MUST ensure the socket outlives
-	// all pending async operations (e.g. via shared_from_this or stable ownership).
+	
+	
 	auto asyncRecv(asio::ip::tcp::socket &socket,
 				   std::function<void(std::error_code, PacketType, std::string)> handler) -> void;
 
-} // namespace packet
+} 

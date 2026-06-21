@@ -45,10 +45,10 @@ void DashboardPage::parseTransactionHistory(const std::string &raw,
 	parsed.reserve(lines.size());
 
 	static constexpr const char *kOperationNames[] = {
-		"Deposit",	   // 0
-		"Withdrawal",  // 1
-		"Transfer Out", // 2
-		"Transfer In", // 3
+		"Deposit",	   
+		"Withdrawal",  
+		"Transfer Out", 
+		"Transfer In", 
 	};
 
 	for (auto i = 0; i < lines.size(); ++i) {
@@ -56,7 +56,7 @@ void DashboardPage::parseTransactionHistory(const std::string &raw,
 		if (line.empty())
 			continue;
 
-		// Format: type|counterparty|amount|balanceAfter|timestamp
+		
 		auto pipe1 = line.find('|');
 		if (pipe1 == std::string_view::npos)
 			continue;
@@ -89,7 +89,7 @@ void DashboardPage::parseTransactionHistory(const std::string &raw,
 		u64 timestamp = 0;
 		std::from_chars(timestampStr.data(), timestampStr.data() + timestampStr.size(), timestamp);
 
-		// Operation name from type, appending counterparty for transfers
+		
 		base::String operation;
 		if (type < 4) {
 			operation = base::String(kOperationNames[type]);
@@ -100,7 +100,7 @@ void DashboardPage::parseTransactionHistory(const std::string &raw,
 			operation = base::String("Unknown");
 		}
 
-		// Format amount with sign: incoming (0 or 3) gets "+", outgoing gets empty prefix
+		
 		std::string amountRaw;
 		if (type == 0 || type == 3) {
 			amountRaw = "+" + std::to_string(amount);
@@ -109,7 +109,7 @@ void DashboardPage::parseTransactionHistory(const std::string &raw,
 		}
 		base::String amountFormatted{std::string_view(amountRaw)};
 
-		// Convert epoch seconds to HH:MM:SS (UTC)
+		
 		auto hrs = (timestamp / 3600) % 24;
 		auto mins = (timestamp / 60) % 60;
 		auto secs = timestamp % 60;
@@ -184,16 +184,16 @@ void DashboardPage::doPing() {
     });
 }
 
-// ── Build ──
+
 
 ftxui::Component DashboardPage::build() {
     auto renderer = ftxui::Renderer([this]() -> ftxui::Element {
-        // ── Latency Color ──
+        
         auto latencyColor = theme::Green;
         if (_latencyVal > 100) latencyColor = theme::Yellow;
         if (_latencyVal > 500 || _latencyVal < 0) latencyColor = theme::Red;
 
-        // ── Account Info ───────────────────────────────────────
+        
         auto accountInfo = ftxui::vbox({
             ftxui::hbox({
                 ftxui::text(" User: ") | ftxui::color(theme::Subtext0),
@@ -204,7 +204,7 @@ ftxui::Component DashboardPage::build() {
             }),
         }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface0);
 
-        // ── Balance Display ────────────────────────────────────
+        
         auto balanceDisplay = ftxui::hbox({
             ftxui::text(" Current Balance ") | ftxui::bold | ftxui::color(theme::Subtext1),
             ftxui::filler(),
@@ -214,14 +214,14 @@ ftxui::Component DashboardPage::build() {
            | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 30)
            | ftxui::center;
 
-        // ── Recent Activity ────────────────────────────────────
+        
         auto logElements = ftxui::Elements();
         if (!_logsStatus.empty()) {
             logElements.push_back(ftxui::text(_logsStatus) | ftxui::dim | ftxui::center);
         } else if (_parsedLogs.empty()) {
             logElements.push_back(ftxui::text("No transactions yet") | ftxui::dim | ftxui::center);
         } else {
-            // Header
+            
             logElements.push_back(ftxui::hbox({
                 ftxui::text(" TIME") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 12),
                 ftxui::text(" OPERATION") | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, 32),
@@ -257,7 +257,7 @@ ftxui::Component DashboardPage::build() {
             ftxui::vbox(std::move(logElements)) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 5),
         }) | ftxui::borderStyled(ftxui::ROUNDED) | ftxui::color(theme::Surface1);
 
-		// ── Balance Graph ──────────────────────────────────────
+		
 		auto graphElement = ftxui::emptyElement();
 		if (_balanceHistory.size() >= 2) {
 			graphElement = ftxui::vbox({
@@ -307,7 +307,7 @@ ftxui::Component DashboardPage::build() {
 						   | ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, 10);
 		}
 
-        // ── Status line ──
+        
         auto errEl = _status.empty() ? ftxui::emptyElement() : ftxui::text(_status) | ftxui::color(theme::Red) | ftxui::center;
 
         return ftxui::vbox({

@@ -17,7 +17,7 @@ namespace base {
 			  class t_KeyEqual = std::equal_to<t_Key>,
 			  class t_Allocator = std::allocator<std::pair<const t_Key, t_Value>>>
 	struct HashMap {
-			// --- Types ---
+			
 			using key_type = t_Key;
 			using mapped_type = t_Value;
 			using value_type = std::pair<const t_Key, t_Value>;
@@ -36,13 +36,13 @@ namespace base {
 			_base _table;
 
 		public:
-			// --- Iterators ---
+			
 			using iterator = typename _base::iterator;
 			using const_iterator = typename _base::const_iterator;
 			using local_iterator = typename _base::iterator;
 			using const_local_iterator = typename _base::const_iterator;
 
-			// --- Construction ---
+			
 			constexpr HashMap() = default;
 
 			constexpr explicit HashMap(const t_Hash &hasher,
@@ -82,7 +82,7 @@ namespace base {
 				return *this;
 			}
 
-			// --- Iterators ---
+			
 			constexpr auto begin() noexcept -> iterator {
 				return _table.begin();
 			}
@@ -107,7 +107,7 @@ namespace base {
 				return _table.cend();
 			}
 
-			// --- Capacity ---
+			
 			[[nodiscard]] constexpr auto empty() const noexcept -> bool {
 				return _table.empty();
 			}
@@ -120,7 +120,7 @@ namespace base {
 				return _table.max_size();
 			}
 
-			// --- Modifiers ---
+			
 			constexpr auto clear() noexcept -> void {
 				_table.clear();
 			}
@@ -167,7 +167,7 @@ namespace base {
 				_table.swap(other._table);
 			}
 
-			// --- Element access ---
+			
 			constexpr auto at(const key_type &key) -> mapped_type & {
 				auto it = _table.find(key);
 				if (it == _table.end())
@@ -195,7 +195,7 @@ namespace base {
 				return result.first->second;
 			}
 
-			// --- Lookup ---
+			
 			constexpr auto find(const key_type &key) -> iterator {
 				return _table.find(key);
 			}
@@ -212,7 +212,7 @@ namespace base {
 				return _table.contains(key) ? 1 : 0;
 			}
 
-			// --- Convenience modifiers ---
+			
 			template <class... T_Args>
 			constexpr auto try_emplace(const key_type &key, T_Args &&...args)
 				-> std::pair<iterator, bool> {
@@ -255,7 +255,7 @@ namespace base {
 				return _table.insert(value_type{key, val});
 			}
 
-			// --- Bucket interface ---
+			
 			constexpr auto bucket_count() const noexcept -> size_type {
 				return _table.bucket_count();
 			}
@@ -268,7 +268,7 @@ namespace base {
 				return _table.bucket(key);
 			}
 
-			// --- Hash policy ---
+			
 			constexpr auto load_factor() const noexcept -> float {
 				return _table.load_factor();
 			}
@@ -289,7 +289,7 @@ namespace base {
 				_table.reserve(n);
 			}
 
-			// --- Observers ---
+			
 			constexpr auto hash_function() const -> hasher {
 				return _table.hash_function();
 			}
@@ -311,4 +311,4 @@ namespace base {
 		a.swap(b);
 	}
 
-} // namespace base
+} 

@@ -15,7 +15,7 @@ namespace base {
 			  class t_KeyEqual = std::equal_to<t_Key>,
 			  class t_Allocator = std::allocator<t_Key>>
 	struct HashSet {
-			// --- Types ---
+			
 			using key_type = t_Key;
 			using value_type = t_Key;
 			using size_type = usize;
@@ -37,13 +37,13 @@ namespace base {
 			_base _table;
 
 		public:
-			// --- Iterators ---
+			
 			using iterator = typename _base::const_iterator;
 			using const_iterator = typename _base::const_iterator;
 			using local_iterator = typename _base::const_iterator;
 			using const_local_iterator = typename _base::const_iterator;
 
-			// --- Construction ---
+			
 			constexpr HashSet() = default;
 
 			constexpr explicit HashSet(const t_Hash &hasher,
@@ -87,7 +87,7 @@ namespace base {
 				return *this;
 			}
 
-			// --- Iterators (always const) ---
+			
 			constexpr auto begin() const noexcept -> const_iterator {
 				return _table.cbegin();
 			}
@@ -104,7 +104,7 @@ namespace base {
 				return _table.cend();
 			}
 
-			// --- Capacity ---
+			
 			[[nodiscard]] constexpr auto empty() const noexcept -> bool {
 				return _table.empty();
 			}
@@ -117,7 +117,7 @@ namespace base {
 				return _table.max_size();
 			}
 
-			// --- Modifiers ---
+			
 			constexpr auto clear() noexcept -> void {
 				_table.clear();
 			}
@@ -169,7 +169,7 @@ namespace base {
 				return val;
 			}
 
-			// --- Lookup ---
+			
 			constexpr auto find(const key_type &key) const -> const_iterator {
 				return _table.find(key);
 			}
@@ -182,7 +182,7 @@ namespace base {
 				return _table.contains(key) ? 1 : 0;
 			}
 
-			// --- Bucket interface ---
+			
 			constexpr auto bucket_count() const noexcept -> size_type {
 				return _table.bucket_count();
 			}
@@ -195,7 +195,7 @@ namespace base {
 				return _table.bucket(key);
 			}
 
-			// --- Hash policy ---
+			
 			constexpr auto load_factor() const noexcept -> float {
 				return _table.load_factor();
 			}
@@ -216,7 +216,7 @@ namespace base {
 				_table.reserve(n);
 			}
 
-			// --- Observers ---
+			
 			constexpr auto hash_function() const -> hasher {
 				return _table.hash_function();
 			}
@@ -237,4 +237,4 @@ namespace base {
 		a.swap(b);
 	}
 
-} // namespace base
+} 

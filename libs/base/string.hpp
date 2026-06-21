@@ -311,10 +311,10 @@ namespace base {
 				return *this;
 			}
 
-			/// Special value used to indicate "not found".
+			
 		static constexpr size_type npos = static_cast<size_type>(-1);
 
-		/// Find first occurrence of @p str starting at @p pos.
+		
 		[[nodiscard]] constexpr auto find(const BasicString &str, size_type pos = 0) const noexcept
 			-> size_type {
 			if (pos > size())
@@ -332,7 +332,7 @@ namespace base {
 			return npos;
 		}
 
-		/// Find first occurrence of character @p c starting at @p pos.
+		
 		[[nodiscard]] constexpr auto find(value_type c, size_type pos = 0) const noexcept
 			-> size_type {
 			if (pos >= size())
@@ -344,13 +344,13 @@ namespace base {
 			return npos;
 		}
 
-		/// Find first occurrence of C-string @p s starting at @p pos.
+		
 		[[nodiscard]] constexpr auto find(const value_type *s, size_type pos = 0) const noexcept
 			-> size_type {
 			return find(BasicString(s), pos);
 		}
 
-		/// Extract substring [pos, pos + count).  If count == npos, goes to the end.
+		
 		[[nodiscard]] constexpr auto substr(size_type pos = 0, size_type count = npos) const
 			-> BasicString {
 			if (pos > size())
@@ -359,7 +359,7 @@ namespace base {
 			return BasicString(data() + pos, n, _alloc);
 		}
 
-		/// Append @p other to the end of this string.
+		
 		constexpr auto operator+=(const BasicString &other) -> BasicString & {
 			auto curr_size = size();
 			auto new_size = curr_size + other.size();
@@ -377,18 +377,18 @@ namespace base {
 			return *this;
 		}
 
-		/// Append character @p c to the end of this string.
+		
 		constexpr auto operator+=(value_type c) -> BasicString & {
 			push_back(c);
 			return *this;
 		}
 
-		/// Append C-string @p s to the end of this string.
+		
 		constexpr auto operator+=(const value_type *s) -> BasicString & {
 			return *this += BasicString(s);
 		}
 
-		/// Check if the string starts with @p prefix.
+		
 		[[nodiscard]] constexpr auto starts_with(const BasicString &prefix) const noexcept
 			-> bool {
 			if (prefix.size() > size())
@@ -396,17 +396,17 @@ namespace base {
 			return t_Traits::compare(data(), prefix.data(), prefix.size()) == 0;
 		}
 
-		/// Check if the string starts with character @p c.
+		
 		[[nodiscard]] constexpr auto starts_with(value_type c) const noexcept -> bool {
 			return !empty() && front() == c;
 		}
 
-		/// Check if the string starts with C-string @p s.
+		
 		[[nodiscard]] constexpr auto starts_with(const value_type *s) const noexcept -> bool {
 			return starts_with(BasicString(s));
 		}
 
-		/// Check if the string ends with @p suffix.
+		
 		[[nodiscard]] constexpr auto ends_with(const BasicString &suffix) const noexcept -> bool {
 			if (suffix.size() > size())
 				return false;
@@ -414,12 +414,12 @@ namespace base {
 				   == 0;
 		}
 
-		/// Check if the string ends with character @p c.
+		
 		[[nodiscard]] constexpr auto ends_with(value_type c) const noexcept -> bool {
 			return !empty() && back() == c;
 		}
 
-		/// Check if the string ends with C-string @p s.
+		
 		[[nodiscard]] constexpr auto ends_with(const value_type *s) const noexcept -> bool {
 			return ends_with(BasicString(s));
 		}
@@ -440,7 +440,7 @@ namespace base {
 		}
 	};
 
-	/// Concatenate two BasicStrings.
+	
 	template <class t_Char, class t_Traits, class t_Alloc>
 	[[nodiscard]] constexpr auto
 	operator+(const BasicString<t_Char, t_Traits, t_Alloc> &a,
@@ -451,7 +451,7 @@ namespace base {
 		return result;
 	}
 
-	/// Concatenate a BasicString with a C-string.
+	
 	template <class t_Char, class t_Traits, class t_Alloc>
 	[[nodiscard]] constexpr auto operator+(const BasicString<t_Char, t_Traits, t_Alloc> &a,
 										   const t_Char *b)
@@ -461,7 +461,7 @@ namespace base {
 		return result;
 	}
 
-	/// Concatenate a C-string with a BasicString.
+	
 	template <class t_Char, class t_Traits, class t_Alloc>
 	[[nodiscard]] constexpr auto operator+(const t_Char *a,
 										   const BasicString<t_Char, t_Traits, t_Alloc> &b)
@@ -481,7 +481,7 @@ namespace base {
 
 	using String = BasicString<char>;
 	using U8String = BasicString<char8_t>;
-} // namespace base
+} 
 
 template <class t_Traits, class t_Alloc>
 struct std::formatter<base::BasicString<char, t_Traits, t_Alloc>> : formatter<std::string_view> {

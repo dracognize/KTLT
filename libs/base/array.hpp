@@ -31,7 +31,7 @@ namespace base {
 				using _is_swappable = std::true_type;
 				using _is_nothrow_swappable = std::true_type;
 		};
-	} // namespace detail
+	} 
 
 	template <class t_Type, usize t_Size> struct Array {
 			using value_type = t_Type;
@@ -203,7 +203,7 @@ namespace base {
 			-> Array<std::remove_cv_t<t_Type>, t_Size> {
 			return {{std::move(_src[t_Is])...}};
 		}
-	} // namespace detail
+	} 
 
 	template <class t_Type, std::size_t t_Size>
 	constexpr auto to_array(t_Type (&_src)[t_Size]) -> Array<std::remove_cv_t<t_Type>, t_Size> {
@@ -214,7 +214,7 @@ namespace base {
 	constexpr auto to_array(t_Type (&&_src)[t_Size]) -> Array<std::remove_cv_t<t_Type>, t_Size> {
 		return detail::to_array_move_impl(_src, std::make_index_sequence<t_Size>());
 	}
-} // namespace base
+} 
 
 namespace std {
 	template <class t_Type, std::size_t t_Size>
@@ -224,4 +224,4 @@ namespace std {
 	struct tuple_element<t_Index, base::Array<t_Type, t_Size>> {
 			using type = t_Type;
 	};
-} // namespace std
+} 

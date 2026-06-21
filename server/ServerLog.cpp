@@ -11,7 +11,7 @@ namespace {
 		std::cout << std::format("[{:%T}] [{}] {}\n", now, level, msg);
 	}
 
-} // namespace
+} 
 
 void ServerLog::info(const std::string &msg) {
 	log("INFO", msg);

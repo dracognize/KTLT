@@ -73,7 +73,7 @@ void App::run() {
 	auto transferComp = transferPage.build();
 	auto settingComp = settingPage.build();
 
-	// ── Pre-Auth ──────────────────────────────────────────────────────
+	
 	auto preAuthTabs = ftxui::Container::Tab({loginComp, signupComp}, &preAuthPage);
 	auto preAuthContent = preAuthTabs;
 
@@ -103,7 +103,7 @@ void App::run() {
 		preAuthContent,
 	});
 
-	// ── Post-Auth ─────────────────────────────────────────────────────
+	
 	auto postAuthTabs = ftxui::Container::Tab(
 			  {dashComp, historyComp, depositComp, withdrawComp, transferComp, settingComp},
 			  &postAuthPage);
@@ -141,7 +141,7 @@ void App::run() {
 		postAuthContent,
 	});
 
-	// ── Top-Level Tab ────────────────────────────────────────────────
+	
 	auto topTabs
 		= ftxui::Container::Tab({preAuthContainer, postAuthContainer}, &section);
 
@@ -153,7 +153,7 @@ void App::run() {
 			| ftxui::color(theme::Mauve);
 	});
 
-	// ── Global Keyboard Shortcuts ────────────────────────────────────
+	
 	auto app = ftxui::CatchEvent(container, [&](ftxui::Event event) -> bool {
 		if (event == ftxui::Event::Escape) {
 			screen.Exit();

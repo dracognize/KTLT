@@ -15,8 +15,8 @@
 
 namespace base {
 
-	// ---- SHA-256 implementation ----
-	// Pure C++26, no external dependencies.
+	
+	
 
 	namespace detail {
 
@@ -61,7 +61,7 @@ namespace base {
 			0xc67178f2,
 		};
 
-	} // namespace detail
+	} 
 
 	struct Sha256 {
 			std::array<u32, 8> state = {
@@ -98,10 +98,10 @@ namespace base {
 			}
 
 			[[nodiscard]] auto finalize() noexcept -> std::array<u8, 32> {
-				// Append 0x80
+				
 				buf[bufLen++] = 0x80;
 
-				// Zero fill rest of buffer
+				
 				if (bufLen > 56) {
 					std::memset(buf.data() + bufLen, 0, 64 - bufLen);
 					processBlock(buf);
@@ -109,7 +109,7 @@ namespace base {
 				}
 				std::memset(buf.data() + bufLen, 0, 56 - bufLen);
 
-				// Append length in bits (big-endian)
+				
 				auto bits = count * 8;
 				if constexpr (std::endian::native == std::endian::little) {
 					bits = std::byteswap(bits);
@@ -118,7 +118,7 @@ namespace base {
 
 				processBlock(buf);
 
-				// Produce output hash (big-endian)
+				
 				std::array<u8, 32> hash{};
 				for (usize i = 0; i < 8; ++i) {
 					auto val = state[i];
@@ -196,21 +196,21 @@ namespace base {
 			}
 	};
 
-	// Convenience: hash a password with a salt
-	// Uses SHA-256(salt + ":" + password) and returns hex string.
+	
+	
 	[[nodiscard]] inline auto hashPassword(std::string_view password,
 										   std::string_view salt) noexcept -> std::string {
 		return Sha256::hashHex(std::string{salt} + ":" + std::string{password});
 	}
 
-	// Generate a random salt string
+	
 	[[nodiscard]] inline auto generateSalt() -> std::string {
-		// Use a combination of time + address entropy
-		// In production, use std::random_device properly.
+		
+		
 		static constexpr const char chars[]
 			= "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 		std::string salt(16, '\0');
-		// Use address of a stack variable + time as poor man's entropy source
+		
 		auto now = std::chrono::system_clock::now().time_since_epoch().count();
 		thread_local u64 counter = 0;
 		++counter;
@@ -222,4 +222,4 @@ namespace base {
 		return salt;
 	}
 
-} // namespace base
+} 

@@ -49,7 +49,7 @@ struct TransferPage {
 		int _spinnerFrame = 0;
 		bool _showConfirm = false;
 
-		// ── User directory / autocomplete ──
+		
 		base::Vector<base::String> _userCache;
 		base::Vector<base::String> _suggestions;
 		std::vector<std::string> _suggestionStrings;

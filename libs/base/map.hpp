@@ -14,7 +14,7 @@ namespace base {
 			  class t_Comparator = std::less<t_Key>,
 			  class t_Allocator = std::allocator<std::pair<const t_Key, t_Value>>>
 	struct Map {
-			// --- Types ---
+			
 			using key_type = t_Key;
 			using mapped_type = t_Value;
 			using value_type = std::pair<const key_type, mapped_type>;
@@ -27,7 +27,7 @@ namespace base {
 			using pointer = value_type *;
 			using const_pointer = const value_type *;
 
-			// --- Comparator adapter ---
+			
 			struct value_compare {
 					key_compare _comp;
 
@@ -47,13 +47,13 @@ namespace base {
 			_base _tree;
 
 		public:
-			// --- Iterators ---
+			
 			using iterator = typename _base::iterator;
 			using const_iterator = typename _base::const_iterator;
 			using reverse_iterator = typename _base::reverse_iterator;
 			using const_reverse_iterator = typename _base::const_reverse_iterator;
 
-			// --- Construction ---
+			
 			Map() = default;
 
 			explicit Map(const key_compare &comp, const allocator_type &alloc = allocator_type{})
@@ -80,7 +80,7 @@ namespace base {
 			Map(const Map &) = default;
 			Map(Map &&) = default;
 
-			// --- Assignment ---
+			
 			auto operator=(const Map &) -> Map & = default;
 			auto operator=(Map &&) -> Map & = default;
 
@@ -90,7 +90,7 @@ namespace base {
 				return *this;
 			}
 
-			// --- Iterators ---
+			
 			auto begin() noexcept -> iterator {
 				return _tree.begin();
 			}
@@ -122,7 +122,7 @@ namespace base {
 				return _tree.crend();
 			}
 
-			// --- Capacity ---
+			
 			[[nodiscard]] auto empty() const noexcept -> bool {
 				return _tree.empty();
 			}
@@ -133,7 +133,7 @@ namespace base {
 				return _tree.max_size();
 			}
 
-			// --- Element access ---
+			
 			auto at(const key_type &key) -> mapped_type & {
 				auto it = find(key);
 				if (it == end())
@@ -156,7 +156,7 @@ namespace base {
 					.first->second;
 			}
 
-			// --- Modifiers ---
+			
 			auto clear() noexcept -> void {
 				_tree.clear();
 			}
@@ -181,7 +181,7 @@ namespace base {
 
 			template <class... Args>
 			auto try_emplace(const key_type &key, Args &&...args) -> std::pair<iterator, bool> {
-				// Avoid constructing the mapped value if key already exists
+				
 				auto it = find(key);
 				if (it != end())
 					return {it, false};
@@ -233,12 +233,12 @@ namespace base {
 			}
 
 			auto extract(const_iterator pos) -> value_type {
-				auto val = *pos; // copy (const_iterator can't move)
+				auto val = *pos; 
 				_tree.erase(pos);
 				return val;
 			}
 
-			// --- Lookup ---
+			
 			auto find(const key_type &key) -> iterator {
 				value_type probe(
 					std::piecewise_construct, std::forward_as_tuple(key), std::forward_as_tuple());
@@ -300,7 +300,7 @@ namespace base {
 				return {lower_bound(key), upper_bound(key)};
 			}
 
-			// --- Observers ---
+			
 			auto key_comp() const -> key_compare {
 				return _tree.value_comp()._comp;
 			}
@@ -318,4 +318,4 @@ namespace base {
 		-> void {
 		a.swap(b);
 	}
-} // namespace base
+} 

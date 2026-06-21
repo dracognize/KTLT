@@ -478,4 +478,4 @@ namespace base {
 						Vector<t_Type, t_Allocator> &b) noexcept(noexcept(a.swap(b))) -> void {
 		a.swap(b);
 	}
-} // namespace base
+} 

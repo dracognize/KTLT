@@ -25,7 +25,7 @@ namespace base {
 					}
 			};
 
-			// --- Type aliases ---
+			
 			using value_type = t_Type;
 			using size_type = usize;
 			using difference_type = isize;
@@ -38,7 +38,7 @@ namespace base {
 			using node_allocator = std::allocator_traits<t_Allocator>::template rebind_alloc<Node>;
 			using alloc_traits = std::allocator_traits<node_allocator>;
 
-			// --- Iterator ---
+			
 			template <class T_Node, class T_Ref, class T_Ptr> struct ListIterator {
 					using iterator_category = std::bidirectional_iterator_tag;
 					using value_type = t_Type;
@@ -167,7 +167,7 @@ namespace base {
 				n->_next->_prev = n->_prev;
 			}
 
-			// --- Merge sort helpers ---
+			
 
 			constexpr auto _split(Node *head, Node **a, Node **b) noexcept -> void {
 				Node *slow = head;
@@ -236,7 +236,7 @@ namespace base {
 			}
 
 		public:
-			// --- Construction ---
+			
 			constexpr List() noexcept(noexcept(node_allocator{})) {
 				_head._prev = &_head;
 				_head._next = &_head;
@@ -349,12 +349,12 @@ namespace base {
 				}
 			}
 
-			// --- Destructor ---
+			
 			constexpr ~List() noexcept {
 				_destroy_all();
 			}
 
-			// --- Assignment ---
+			
 			constexpr auto operator=(const List &other) -> List & {
 				if (this != &other) {
 					_destroy_all();
@@ -399,7 +399,7 @@ namespace base {
 				return *this;
 			}
 
-			// --- Assign ---
+			
 			constexpr auto assign(const size_type &count, const value_type &value) -> void {
 				clear();
 				if (count == 0)
@@ -437,7 +437,7 @@ namespace base {
 				assign(ilist.begin(), ilist.end());
 			}
 
-			// --- Iterators ---
+			
 			constexpr auto begin() noexcept -> iterator {
 				return iterator(_head._next);
 			}
@@ -486,7 +486,7 @@ namespace base {
 				return const_reverse_iterator(cbegin());
 			}
 
-			// --- Capacity ---
+			
 			[[nodiscard]] constexpr auto empty() const noexcept -> bool {
 				return _head._next == &_head;
 			}
@@ -499,7 +499,7 @@ namespace base {
 				return alloc_traits::max_size(_alloc);
 			}
 
-			// --- Element access ---
+			
 			constexpr auto front(this auto &&self) noexcept -> decltype(auto) {
 				return self._head._next->_value;
 			}
@@ -508,12 +508,12 @@ namespace base {
 				return self._head._prev->_value;
 			}
 
-			// --- Modifiers ---
+			
 			constexpr auto clear() noexcept -> void {
 				_destroy_all();
 			}
 
-			// --- Insert ---
+			
 			constexpr auto insert(const_iterator pos, const value_type &val) -> iterator {
 				auto *n = _create_node(val);
 				_link_before(const_cast<Node *>(pos._node), n);
@@ -572,7 +572,7 @@ namespace base {
 				return insert(pos, ilist.begin(), ilist.end());
 			}
 
-			// --- Emplace ---
+			
 			template <class... T_Args>
 			constexpr auto emplace(const_iterator pos, T_Args &&...args) -> iterator {
 				auto *n = _emplace_create_node(std::forward<T_Args>(args)...);
@@ -595,7 +595,7 @@ namespace base {
 				return n->_value;
 			}
 
-			// --- Push / Pop ---
+			
 			constexpr auto push_front(const value_type &val) -> void {
 				insert(cbegin(), val);
 			}
@@ -620,7 +620,7 @@ namespace base {
 				erase(std::prev(cend()));
 			}
 
-			// --- Erase ---
+			
 			constexpr auto erase(const_iterator pos) -> iterator {
 				auto *node = const_cast<Node *>(pos._node);
 				auto *next = node->_next;
@@ -652,7 +652,7 @@ namespace base {
 				return iterator(last_node);
 			}
 
-			// --- Resize ---
+			
 			constexpr auto resize(size_type count) -> void {
 				if (count < _size) {
 					auto *n = _head._next;
@@ -711,7 +711,7 @@ namespace base {
 				}
 			}
 
-			// --- Swap ---
+			
 			constexpr auto swap(List &other) noexcept(std::is_nothrow_swappable_v<node_allocator>)
 				-> void {
 				if (this == &other)
@@ -747,7 +747,7 @@ namespace base {
 				}
 			}
 
-			// --- Operations: Reverse ---
+			
 			constexpr auto reverse() noexcept -> void {
 				if (_size <= 1)
 					return;
@@ -759,7 +759,7 @@ namespace base {
 				base::swap(_head._prev, _head._next);
 			}
 
-			// --- Operations: Remove ---
+			
 			constexpr auto remove(const value_type &val) -> size_type {
 				return remove_if([&](const value_type &v) { return v == val; });
 			}
@@ -780,7 +780,7 @@ namespace base {
 				return count;
 			}
 
-			// --- Operations: Unique ---
+			
 			constexpr auto unique() -> size_type {
 				return unique([](const value_type &a, const value_type &b) { return a == b; });
 			}
@@ -802,7 +802,7 @@ namespace base {
 				return count;
 			}
 
-			// --- Operations: Merge ---
+			
 			constexpr auto merge(List &other) -> void {
 				merge(other, [](const value_type &a, const value_type &b) { return a < b; });
 			}
@@ -847,7 +847,7 @@ namespace base {
 				merge(other, std::move(comp));
 			}
 
-			// --- Operations: Sort ---
+			
 			constexpr auto sort() -> void {
 				if (_size <= 1)
 					return;
@@ -866,7 +866,7 @@ namespace base {
 				_rebuild_tail();
 			}
 
-			// --- Operations: Splice ---
+			
 			constexpr auto splice(const_iterator pos, List &other) -> void {
 				if (other.empty())
 					return;
@@ -930,7 +930,7 @@ namespace base {
 				splice(pos, other, first, last);
 			}
 
-			// --- Observers ---
+			
 			constexpr auto get_allocator() const noexcept -> allocator_type {
 				return _alloc;
 			}
@@ -950,4 +950,4 @@ namespace base {
 						List<t_Type, t_Allocator> &b) noexcept(noexcept(a.swap(b))) -> void {
 		a.swap(b);
 	}
-} // namespace base
+} 

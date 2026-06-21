@@ -13,11 +13,11 @@
 #include <thread>
 #include <variant>
 
-// Password security: store salt (16 bytes) + SHA-256 binary hash (32 bytes) = 48 bytes
+
 inline constexpr usize UsernameMaxLen = 23;
 inline constexpr usize PasswordSaltLen = 16;
 inline constexpr usize PasswordHashLen = 32;
-inline constexpr usize PasswordStoreLen = PasswordSaltLen + PasswordHashLen; // 48
+inline constexpr usize PasswordStoreLen = PasswordSaltLen + PasswordHashLen; 
 inline constexpr usize LogFileMaxLen = 31;
 inline constexpr usize DefaultBalance = 100'000;
 inline constexpr const char *DataDir = "data";

@@ -34,7 +34,7 @@ class Client;
 		bool _pendingRefresh = false;
 		int _spinnerFrame = 0;
 
-		// Sort & search state
+		
 		SortColumn _sortColumn = SortColumn::Time;
 		bool _sortAscending = true;
 		std::string _searchStr;

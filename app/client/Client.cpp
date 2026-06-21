@@ -84,7 +84,7 @@ void Client::recvLoop() {
 			return;
 		}
 		if (_pending.empty()) {
-			// Unsolicited response — ignore
+			
 			recvLoop();
 			return;
 		}

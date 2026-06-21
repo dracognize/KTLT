@@ -5,7 +5,7 @@
 #include <ftxui/dom/elements.hpp>
 
 namespace theme {
-    // Catppuccin Mocha Palette (Hex to RGB)
+    
     inline const auto Rosewater = ftxui::Color::RGB(245, 224, 220);
     inline const auto Flamingo  = ftxui::Color::RGB(242, 205, 205);
     inline const auto Pink      = ftxui::Color::RGB(245, 194, 231);
@@ -37,7 +37,7 @@ namespace theme {
     inline const auto Mantle    = ftxui::Color::RGB(24, 24, 37);
     inline const auto Crust     = ftxui::Color::RGB(17, 17, 27);
 
-    // Subtle Button Styling
+    
     inline auto Button(ftxui::Color color) {
         auto option = ftxui::ButtonOption::Border();
         option.transform = [color](const ftxui::EntryState &s) {
@@ -49,4 +49,4 @@ namespace theme {
         };
         return option;
     }
-} // namespace theme
+} 

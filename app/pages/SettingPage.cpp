@@ -7,16 +7,16 @@
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 
-// ── Inline password strength helpers ─────────────────────────────────
+
 static int evaluateStrength(const std::string &pw) {
 	auto len = pw.size();
 	if (len == 0)
 		return 0;
 	if (len < 6)
-		return 0; // Weak
+		return 0; 
 	if (len < 12)
-		return 1; // Medium
-	return 2;	  // Strong
+		return 1; 
+	return 2;	  
 }
 
 static const char *strengthLabel(int s) {

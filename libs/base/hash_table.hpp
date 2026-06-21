@@ -17,7 +17,7 @@ namespace base {
 			  class t_KeyEqual = std::equal_to<t_Key>,
 			  class t_Allocator = std::allocator<std::pair<const t_Key, t_Value>>>
 	struct HashTable {
-			// --- Type aliases ---
+			
 			using key_type = t_Key;
 			using mapped_type = t_Value;
 			using value_type = std::pair<const t_Key, t_Value>;
@@ -58,7 +58,7 @@ namespace base {
 			t_Hash _hasher;
 			t_KeyEqual _key_equal;
 
-			// --- Iterator ---
+			
 		public:
 			template <class T_Node, class T_Value> struct Iterator {
 					using iterator_category = std::forward_iterator_tag;
@@ -67,9 +67,9 @@ namespace base {
 					using pointer = T_Value *;
 					using reference = T_Value &;
 
-					// Bucket pointers are always mutable Node** — iterators
-					// traverse but never modify the bucket array, so we only
-					// need a single bucket-pointer type regardless of const.
+					
+					
+					
 					Node **_bucket = nullptr;
 					Node **_buckets_end = nullptr;
 					T_Node *_node = nullptr;
@@ -119,7 +119,7 @@ namespace base {
 			using iterator = Iterator<Node, value_type>;
 			using const_iterator = Iterator<const Node, const value_type>;
 
-			// --- Construction / Destruction ---
+			
 			constexpr HashTable() : _bucket_count(DEFAULT_BUCKET_COUNT) {
 				_buckets = _alloc_buckets(_bucket_count);
 			}
@@ -187,7 +187,7 @@ namespace base {
 				_free_buckets();
 			}
 
-			// --- Assignment ---
+			
 			constexpr auto operator=(const HashTable &other) -> HashTable & {
 				if (this != &other) {
 					_clear();
@@ -231,7 +231,7 @@ namespace base {
 				return *this;
 			}
 
-			// --- Iterators ---
+			
 			constexpr auto begin() noexcept -> iterator {
 				return _make_iterator(
 					_buckets, _buckets + _bucket_count, _buckets ? *_buckets : nullptr);
@@ -258,7 +258,7 @@ namespace base {
 				return end();
 			}
 
-			// --- Capacity ---
+			
 			[[nodiscard]] constexpr auto empty() const noexcept -> bool {
 				return _size == 0;
 			}
@@ -271,7 +271,7 @@ namespace base {
 				return alloc_traits::max_size(_node_alloc);
 			}
 
-			// --- Modifiers ---
+			
 			constexpr auto clear() noexcept -> void {
 				_clear();
 				_size = 0;
@@ -346,7 +346,7 @@ namespace base {
 				return 0;
 			}
 
-			// --- Lookup ---
+			
 			constexpr auto find(const key_type &key) -> iterator {
 				auto idx = _bucket_index(key);
 				auto cur = _buckets[idx];
@@ -375,7 +375,7 @@ namespace base {
 				return find(key) != end();
 			}
 
-			// --- Bucket interface ---
+			
 			constexpr auto bucket_count() const noexcept -> size_type {
 				return _bucket_count;
 			}
@@ -394,7 +394,7 @@ namespace base {
 				return _bucket_index(key);
 			}
 
-			// --- Hash policy ---
+			
 			constexpr auto load_factor() const noexcept -> float {
 				return _bucket_count ? static_cast<float>(_size) / static_cast<float>(_bucket_count)
 									 : 0.0f;
@@ -420,7 +420,7 @@ namespace base {
 					rehash(static_cast<size_type>(static_cast<float>(n) / _max_load_factor_v) + 1);
 			}
 
-			// --- Swap ---
+			
 			constexpr auto swap(HashTable &other) noexcept -> void {
 				base::swap(_node_alloc, other._node_alloc);
 				base::swap(_buckets, other._buckets);
@@ -431,7 +431,7 @@ namespace base {
 				base::swap(_key_equal, other._key_equal);
 			}
 
-			// --- Observers ---
+			
 			constexpr auto hash_function() const -> hasher {
 				return _hasher;
 			}
@@ -488,8 +488,8 @@ namespace base {
 				}
 			}
 
-			// Returns {bucket_ptr, exists} where bucket_ptr points to the
-			// bucket head for the key, and exists indicates if key is already present.
+			
+			
 			constexpr auto _find_insert_bucket(const key_type &key) -> std::pair<Node **, bool> {
 				auto idx = _bucket_index(key);
 				auto *cur = _buckets[idx];
@@ -563,4 +563,4 @@ namespace base {
 		a.swap(b);
 	}
 
-} // namespace base
+} 

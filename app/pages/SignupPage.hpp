@@ -41,5 +41,5 @@ struct SignupPage {
 		std::string _status;
 		bool _loading = false;
 		int _spinnerFrame = 0;
-		int _cachedStrength = 0; // 0=weak, 1=medium, 2=strong
+		int _cachedStrength = 0; 
 };

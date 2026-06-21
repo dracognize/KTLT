@@ -12,26 +12,26 @@
 #include <string>
 #include <vector>
 
-// Must match the constants in server/Database.hpp
+
 inline constexpr usize UsernameMaxLen = 23;
 inline constexpr usize PasswordSaltLen = 16;
 inline constexpr usize PasswordHashLen = 32;
-inline constexpr usize PasswordStoreLen = PasswordSaltLen + PasswordHashLen; // 48
+inline constexpr usize PasswordStoreLen = PasswordSaltLen + PasswordHashLen; 
 inline constexpr usize LogFileMaxLen = 31;
 
 #pragma pack(push, 1)
 struct Record {
-		char username[UsernameMaxLen + 1]; // 24
-		char password[PasswordStoreLen];   // 48 (16 salt + 32 hash)
+		char username[UsernameMaxLen + 1]; 
+		char password[PasswordStoreLen];   
 		u64 balance;
-		char logFile[LogFileMaxLen + 1]; // 32
+		char logFile[LogFileMaxLen + 1]; 
 		b8 isLocked;
 };
 #pragma pack(pop)
 
 static_assert(sizeof(Record) == 24 + 48 + 8 + 32 + 1, "Record size mismatch");
 
-// Transaction record matching server/Database.hpp
+
 #pragma pack(push, 1)
 struct TxnRecord {
 		char username[24];
@@ -62,11 +62,11 @@ namespace {
 
 		auto logName = user + ".log";
 
-		// Generate salted SHA-256 hash matching Database::hashPasswordInto
+		
 		auto salt = base::generateSalt();
 		auto rawHash = base::Sha256::hash(salt + ":" + pass);
 
-		// Fill record fields
+		
 		std::memcpy(r.username, user.c_str(), (std::min)(user.size(), sizeof(r.username) - 1));
 		std::memcpy(r.password,
 					salt.c_str(),
@@ -92,7 +92,7 @@ namespace {
 		}
 	}
 
-	// Transaction types matching server/Database.hpp TransactionType
+	
 	enum TxnType : u8 {
 		deposit = 0,
 		withdraw = 1,
@@ -144,12 +144,12 @@ namespace {
 		return std::format("[2026-06-17 {:02}:{:02}:{:02}] {}", h, m, s, msg);
 	}
 
-	// Base timestamp: 2026-06-17 00:00:00 UTC (epoch seconds)
+	
 	inline constexpr u64 BaseEpoch = 1781654400ULL;
 
-	// Compute epoch seconds from sequence number (matching formatLog's time)
+	
 	[[nodiscard]] auto txnTimestamp(int seq) -> u64 {
-		auto total = 8 * 3600 + 30 * 60 + seq * 12; // seconds since midnight
+		auto total = 8 * 3600 + 30 * 60 + seq * 12; 
 		return BaseEpoch + static_cast<u64>(total);
 	}
 
@@ -298,7 +298,7 @@ int main() {
 
 	writeRecord(f, "locked", "lockedpw", 1'000, true);
 	writeLog("locked", {"[2026-06-17 08:30:00] Account created with balance 1000"});
-	// locked account has no .txn file (no transactions after creation)
+	
 
 	std::cout << "wrote 3 test accounts to data.db\n";
 	std::cout << "  admin:   balance " << adminBalance << " (" << (adminLog.size())
